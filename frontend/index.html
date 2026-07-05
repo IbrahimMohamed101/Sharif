@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>جدول الإنتاج الأسبوعي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#0a0b10;
+    --bg-1:#12141c;
+    --glass:rgba(255,255,255,0.045);
+    --glass-strong:rgba(255,255,255,0.08);
+    --border:rgba(255,255,255,0.09);
+    --text-hi:#eef0f6;
+    --text-mid:#a7abbc;
+    --text-low:#666b7d;
+
+    --qiyadi:#4c7cff;
+    --qiyadi-glow:rgba(76,124,255,0.35);
+    --rayej:#ff3d68;
+    --rayej-glow:rgba(255,61,104,0.35);
+    --gamers:#a855f7;
+    --gamers-glow:rgba(168,85,247,0.35);
+    --saeh:#14c8b0;
+    --saeh-glow:rgba(20,200,176,0.35);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(76,124,255,0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(168,85,247,0.08), transparent),
+      var(--bg-0);
+    min-height:100vh;
+    font-family:'Tajawal', sans-serif;
+    color:var(--text-hi);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .page{ max-width:960px; margin:0 auto; padding:28px 18px 80px; }
+
+  /* ===== HERO ===== */
+  .hero{ position:relative; text-align:center; padding:34px 12px 8px; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'Cairo', sans-serif; font-weight:700; font-size:12.5px;
+    letter-spacing:0.5px; color:var(--text-mid);
+    background:var(--glass); border:1px solid var(--border);
+    padding:7px 16px; border-radius:100px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:#3ddc84; box-shadow:0 0 8px #3ddc84; animation:pulse 2s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  h1{
+    font-family:'Cairo', sans-serif; font-weight:900;
+    font-size:clamp(28px, 6vw, 44px);
+    margin:18px 0 8px;
+    background:linear-gradient(90deg, #fff, #b9c2e0 70%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    line-height:1.25;
+  }
+  .subtitle{ color:var(--text-mid); font-size:15px; margin-bottom:26px; }
+
+  .week-strip{
+    display:flex; align-items:center; justify-content:center;
+    gap:4px; margin:0 auto 30px; max-width:640px;
+    position:relative;
+  }
+  .week-strip::before{
+    content:''; position:absolute; top:19px; left:8%; right:8%; height:2px;
+    background:linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent);
+    z-index:0;
+  }
+  .strip-node{
+    position:relative; z-index:1; flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;
+    cursor:pointer; background:none; border:none; font-family:'Tajawal'; padding:6px 2px;
+  }
+  .strip-dot{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--bg-1); border:2px solid var(--border);
+    transition:all .35s ease;
+  }
+  .strip-dot.done{ background:#3ddc84; border-color:#3ddc84; box-shadow:0 0 12px rgba(61,220,132,.6); }
+  .strip-dot.partial{ background:var(--bg-1); border-color:#f5b942; box-shadow:0 0 10px rgba(245,185,66,.4); }
+  .strip-label{ font-size:11.5px; color:var(--text-low); font-weight:500; white-space:nowrap; }
+  .strip-node:hover .strip-label{ color:var(--text-mid); }
+
+  .overall{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    margin:0 auto 6px;
+  }
+  .ring-wrap{ position:relative; width:76px; height:76px; }
+  .ring-wrap svg{ transform:rotate(-90deg); width:76px; height:76px; }
+  .ring-bg{ fill:none; stroke:var(--glass-strong); stroke-width:6; }
+  .ring-fg{ fill:none; stroke:#3ddc84; stroke-width:6; stroke-linecap:round; transition:stroke-dashoffset .5s ease; filter:drop-shadow(0 0 6px rgba(61,220,132,.5)); }
+  .ring-num{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:800; font-size:16px; }
+  .overall-text{ text-align:right; }
+  .overall-text .big{ font-family:'Cairo'; font-weight:800; font-size:15px; }
+  .overall-text .small{ font-size:12.5px; color:var(--text-mid); }
+
+  .monthly-panel{
+    max-width:480px; margin:26px auto 0;
+    background:var(--glass); border:1px solid var(--border); border-radius:16px;
+    padding:16px 18px;
+  }
+  .monthly-title{ font-family:'Cairo'; font-weight:800; font-size:12.5px; margin-bottom:14px; color:var(--text-mid); text-align:center; }
+  .monthly-row{ display:flex; align-items:center; gap:10px; margin-bottom:11px; }
+  .monthly-row:last-child{ margin-bottom:0; }
+  .monthly-channel-name{
+    font-family:'Cairo'; font-weight:700; font-size:11.5px; color:var(--accent);
+    width:82px; flex-shrink:0; white-space:nowrap; text-align:right;
+  }
+  .monthly-bar{ flex:1; height:7px; border-radius:100px; background:var(--glass-strong); overflow:hidden; }
+  .monthly-bar-fill{ height:100%; border-radius:100px; background:var(--accent); transition:width .4s ease; }
+  .monthly-pct{ font-family:'Cairo'; font-weight:700; font-size:11.5px; color:var(--text-mid); width:34px; text-align:left; flex-shrink:0; }
+
+  .history-zone{ display:flex; justify-content:center; margin-top:24px; }
+  .history-week{ border:1px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .history-chart-wrap{
+    background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:14px;
+    padding:14px 10px 6px; margin-bottom:16px;
+  }
+  .history-chart-title{ font-family:'Cairo'; font-weight:700; font-size:11.5px; color:var(--text-mid); text-align:center; margin-bottom:6px; }
+  .history-chart{ width:100%; height:auto; display:block; }
+  .history-week:last-child{ margin-bottom:0; }
+  .history-week-header{ display:flex; justify-content:space-between; align-items:center; font-family:'Cairo'; font-weight:700; font-size:13px; margin-bottom:8px; }
+  .history-week-date{ color:var(--text-hi); }
+  .history-week-pct{ color:#3ddc84; }
+  .history-week-channels{ display:flex; flex-direction:column; gap:5px; }
+  .history-channel-row{ display:flex; justify-content:space-between; font-size:12px; color:var(--text-mid); }
+  .history-empty{ color:var(--text-mid); font-size:13px; text-align:center; padding:24px 0; }
+
+  /* ===== DAY CARDS ===== */
+  .days-grid{ display:flex; flex-direction:column; gap:16px; margin-top:36px; }
+
+  .day-card{
+    background:var(--glass);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:20px 20px 8px;
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    transition:border-color .3s ease;
+  }
+  .day-card.complete{ border-color:rgba(61,220,132,0.35); background:rgba(61,220,132,0.035); }
+
+  .day-header{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .day-name{ font-family:'Cairo'; font-weight:800; font-size:17px; white-space:nowrap; }
+  .day-bar{ flex:1; height:6px; border-radius:100px; background:var(--glass-strong); overflow:hidden; }
+  .day-bar-fill{ height:100%; border-radius:100px; background:linear-gradient(90deg,#3ddc84,#14c8b0); transition:width .4s ease; }
+  .day-count{ font-family:'Cairo'; font-weight:700; font-size:12.5px; color:var(--text-mid); white-space:nowrap; }
+  .day-check-icon{ font-size:15px; opacity:0; transition:opacity .3s; }
+  .day-card.complete .day-check-icon{ opacity:1; }
+
+  .tasks{ display:flex; flex-direction:column; }
+
+  .task-block{ border-top:1px solid var(--border); padding:12px 4px; }
+  .task-block:first-child{ border-top:none; }
+
+  .task{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    cursor:pointer; user-select:none;
+  }
+
+  .task input{ display:none; }
+  .checkbox-custom{
+    flex-shrink:0; width:21px; height:21px; border-radius:7px;
+    border:2px solid var(--border); background:rgba(255,255,255,0.02);
+    display:flex; align-items:center; justify-content:center;
+    transition:all .2s ease;
+  }
+  .checkbox-custom svg{ width:12px; height:12px; opacity:0; transform:scale(.5); transition:all .2s ease; }
+  .task input:checked + .checkbox-custom{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent-glow); }
+  .task input:checked + .checkbox-custom svg{ opacity:1; transform:scale(1); }
+
+  .channel-badge{
+    flex-shrink:0; display:inline-flex; align-items:center; gap:6px;
+    font-family:'Cairo'; font-weight:700; font-size:12px;
+    color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent);
+    border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    padding:5px 11px; border-radius:100px; white-space:nowrap;
+  }
+
+  .task-label-wrap{ display:flex; flex-direction:column; gap:2px; }
+  .task-label{ font-size:14.5px; color:var(--text-hi); transition:all .2s; }
+  .task-sub{ font-size:11px; color:var(--text-low); }
+  .task input:checked ~ .task-label-wrap .task-label{ color:var(--text-low); text-decoration:line-through; text-decoration-color:var(--text-low); }
+
+  .script-toggle{
+    margin-right:auto; display:inline-flex; align-items:center; gap:6px;
+    font-family:'Tajawal'; font-size:12px; font-weight:500;
+    color:var(--text-mid); background:var(--glass-strong); border:1px solid var(--border);
+    padding:7px 13px; border-radius:100px; cursor:pointer; transition:all .2s;
+    white-space:nowrap;
+  }
+  .script-toggle:hover{ border-color:var(--accent); color:var(--accent); }
+  .script-toggle.has-script{ color:#3ddc84; border-color:rgba(61,220,132,0.35); background:rgba(61,220,132,0.06); }
+
+  .script-panel{
+    display:none; margin-top:12px; padding-right:33px;
+  }
+  .script-panel.open{ display:block; }
+  .script-panel textarea{
+    width:100%; min-height:110px; resize:vertical;
+    background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:12px;
+    color:var(--text-hi); font-family:'Tajawal', sans-serif; font-size:13.5px; line-height:1.7;
+    padding:12px 14px; direction:rtl; text-align:right;
+  }
+  .script-panel textarea:focus{ outline:none; border-color:var(--accent); }
+  .script-hint{ font-size:11px; color:var(--text-low); margin-top:6px; }
+  .save-flash{ color:#3ddc84; opacity:0; transition:opacity .3s; }
+  .save-flash.show{ opacity:1; }
+
+  .thumb-prompt-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .thumb-prompt-btn{
+    background:rgba(245,185,66,0.12); border:1px solid rgba(245,185,66,0.4);
+    color:#f5b942; font-family:'Cairo'; font-weight:700; font-size:12.5px;
+    padding:8px 15px; border-radius:100px; cursor:pointer; transition:all .2s;
+    white-space:nowrap;
+  }
+  .thumb-prompt-btn:hover{ background:rgba(245,185,66,0.2); }
+  .thumb-prompt-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .thumb-flash{ font-size:11px; color:#3ddc84; opacity:0; transition:opacity .3s; }
+  .thumb-flash.show{ opacity:1; }
+
+  .titles-prompt-btn{
+    background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.4);
+    color:#c084fc; font-family:'Cairo'; font-weight:700; font-size:12.5px;
+    padding:8px 15px; border-radius:100px; cursor:pointer; transition:all .2s;
+    white-space:nowrap;
+  }
+  .titles-prompt-btn:hover{ background:rgba(168,85,247,0.2); }
+  .titles-prompt-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .titles-flash{ font-size:11px; color:#3ddc84; opacity:0; transition:opacity .3s; }
+  .titles-flash.show{ opacity:1; }
+
+  .hook-input{
+    width:100%; margin-bottom:8px;
+    background:rgba(245,185,66,0.06); border:1px solid rgba(245,185,66,0.3); border-radius:10px;
+    color:var(--text-hi); font-family:'Tajawal'; font-size:13px; font-weight:700;
+    padding:10px 12px; direction:rtl; text-align:right;
+  }
+  .hook-input:focus{ outline:none; border-color:#f5b942; }
+  .hook-input::placeholder{ color:var(--text-low); font-weight:400; }
+
+  .danger-zone{ display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:44px; }
+  .reset-btn{
+    background:none; border:1px solid var(--border);
+    color:var(--text-low); font-family:'Tajawal'; font-size:13px; padding:9px 20px;
+    border-radius:100px; cursor:pointer; transition:all .2s;
+  }
+  .reset-btn:hover{ color:#ff6b81; border-color:rgba(255,61,104,0.4); background:rgba(255,61,104,0.06); }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; z-index:50;
+    background:rgba(6,7,11,0.75); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{
+    width:100%; max-width:360px; text-align:center;
+    background:var(--bg-1); border:1px solid var(--border); border-radius:20px;
+    padding:28px 24px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    animation:modalIn .25s ease;
+  }
+  @keyframes modalIn{ from{ opacity:0; transform:translateY(10px) scale(.97);} to{ opacity:1; transform:none;} }
+  .modal-icon{ font-size:28px; margin-bottom:10px; }
+  .modal-box h3{ font-family:'Cairo'; font-weight:800; font-size:16.5px; margin-bottom:8px; }
+  .modal-desc{ font-size:13px; color:var(--text-mid); line-height:1.7; margin-bottom:18px; }
+  #resetPasswordInput{
+    width:100%; text-align:center; letter-spacing:4px;
+    background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:12px;
+    color:var(--text-hi); font-family:'Cairo'; font-size:16px; font-weight:700;
+    padding:12px; direction:ltr;
+  }
+  #resetPasswordInput:focus{ outline:none; border-color:#ff3d68; }
+  #resetPasswordInput.shake{ animation:shake .35s; border-color:#ff3d68; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+  .modal-error{ display:none; color:#ff6b81; font-size:12px; margin-top:8px; }
+  .modal-error.show{ display:block; }
+  .modal-actions{ display:flex; gap:10px; margin-top:20px; }
+  .modal-actions button{
+    flex:1; border-radius:100px; padding:11px; font-family:'Cairo'; font-weight:700; font-size:13.5px;
+    cursor:pointer; border:1px solid var(--border); transition:all .2s;
+  }
+  .modal-cancel{ background:none; color:var(--text-mid); }
+  .modal-cancel:hover{ background:var(--glass-strong); }
+  .modal-confirm{ background:#ff3d68; border-color:#ff3d68; color:#fff; }
+  .modal-confirm:hover{ background:#ff2255; }
+
+  .editor-box{ max-width:640px; text-align:right; max-height:85vh; display:flex; flex-direction:column; }
+  .editor-body{ overflow-y:auto; max-height:52vh; margin:12px 0; padding-left:4px; }
+  .editor-day-section{ margin-bottom:20px; }
+  .editor-day-title{ font-family:'Cairo'; font-weight:800; font-size:14px; margin-bottom:10px; color:var(--text-hi); }
+  .editor-task-row{ display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+  .editor-channel-select{
+    background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text-hi);
+    border-radius:8px; padding:8px 6px; font-family:'Tajawal'; font-size:12px; flex-shrink:0; max-width:110px;
+  }
+  .editor-label-input{
+    flex:1; min-width:0; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text-hi);
+    border-radius:8px; padding:8px 10px; font-family:'Tajawal'; font-size:13px; direction:rtl; text-align:right;
+  }
+  .editor-label-input:focus, .editor-channel-select:focus{ outline:none; border-color:#f5b942; }
+  .editor-delete-btn{
+    background:rgba(255,61,104,0.12); border:1px solid rgba(255,61,104,0.35); color:#ff6b81;
+    border-radius:8px; width:34px; height:34px; cursor:pointer; flex-shrink:0; font-size:13px;
+  }
+  .editor-delete-btn:hover{ background:rgba(255,61,104,0.22); }
+  .editor-add-btn{
+    background:none; border:1px dashed var(--border); color:var(--text-mid);
+    border-radius:10px; padding:9px; width:100%; cursor:pointer; font-family:'Tajawal'; font-size:12.5px; margin-top:2px;
+    transition:all .2s;
+  }
+  .editor-add-btn:hover{ border-color:var(--text-mid); color:var(--text-hi); background:var(--glass-strong); }
+
+  footer{ text-align:center; margin-top:40px; color:var(--text-low); font-size:12px; }
+
+  @media (max-width:520px){
+    .channel-badge{ font-size:11px; padding:4px 9px; }
+    .day-header{ flex-wrap:wrap; }
+    .script-panel{ padding-right:0; }
+    .task{ gap:8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="hero">
+    <span class="eyebrow"><span class="dot"></span> أونلاين الآن</span>
+    <h1>جدول الإنتاج الأسبوعي</h1>
+    <p class="subtitle">القيادي · رائج · عرب جيمرز · سائح — كل حاجة في مكان واحد</p>
+
+    <div class="week-strip" id="weekStrip"></div>
+
+    <div class="overall">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 76 76">
+          <circle class="ring-bg" cx="38" cy="38" r="32"></circle>
+          <circle class="ring-fg" id="ringFg" cx="38" cy="38" r="32" stroke-dasharray="201" stroke-dashoffset="201"></circle>
+        </svg>
+        <div class="ring-num" id="ringNum">0%</div>
+      </div>
+      <div class="overall-text">
+        <div class="big" id="overallCount">0 / 0 مهمة</div>
+        <div class="small">نسبة إنجاز الأسبوع كله</div>
+      </div>
+    </div>
+
+    <div class="monthly-panel">
+      <div class="monthly-title">📊 الالتزام الشهري لكل قناة</div>
+      <div class="monthly-channels" id="monthlyChannels"></div>
+    </div>
+
+  </div>
+
+  <main class="days-grid" id="daysGrid"></main>
+
+  <div class="history-zone">
+    <button class="reset-btn" id="openHistoryBtn">📁 سجل الأسابيع السابقة</button>
+  </div>
+
+  <div class="danger-zone">
+    <button class="reset-btn" id="openTaskEditorBtn">✏️ تعديل قائمة المهام</button>
+    <button class="reset-btn" id="openResetModalBtn">🔒 إعادة تعيين الجدول بالكامل</button>
+  </div>
+
+  <footer>جدول ثابت لأربع قنوات — بيتحدّث تلقائيًا وبيفتكر اللي خلّصته وسكريبتاتك كمان</footer>
+</div>
+
+<div class="modal-overlay" id="historyModal">
+  <div class="modal-box editor-box">
+    <div class="modal-icon">📁</div>
+    <h3>سجل الأسابيع السابقة</h3>
+    <p class="modal-desc">بيتسجل أداء الأسبوع تلقائيًا كل ما تعمل "إعادة تعيين الجدول بالكامل".</p>
+    <div class="editor-body" id="historyBody"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="closeHistoryBtn" style="flex:1;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetModal">
+  <div class="modal-box">
+    <div class="modal-icon">🔒</div>
+    <h3 id="modalTitle">متأكد إنك عايز تصفّر الجدول؟</h3>
+    <p class="modal-desc" id="modalDesc">هيتمسح كل الـ checkboxes والسكريبتات اللي كتبتها. اكتب الباسورد عشان تأكد.</p>
+    <input type="password" id="resetPasswordInput" placeholder="الباسورد" inputmode="numeric">
+    <div class="modal-error" id="resetError">باسورد غلط، جرّب تاني.</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="cancelResetBtn">إلغاء</button>
+      <button class="modal-confirm" id="confirmResetBtn">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taskEditorModal">
+  <div class="modal-box editor-box">
+    <div class="modal-icon">✏️</div>
+    <h3>تعديل قائمة المهام</h3>
+    <p class="modal-desc">ضيف مهمة جديدة، غيّر القناة أو النص، أو احذف أي مهمة. متنساش تدوس حفظ في الآخر.</p>
+    <div class="editor-body" id="editorBody"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="cancelEditorBtn">إلغاء</button>
+      <button class="modal-confirm" id="saveEditorBtn">💾 حفظ التعديلات</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// =====================
+// LOCAL STORAGE CONFIG
+// =====================
+// البيانات كلها (checkboxes/سكريبتات/قائمة المهام/سجل الأسابيع) بتتخزن محليًا
+// في المتصفح بتاع الجهاز ده بس (localStorage) — مفيش مزامنة سحابية ومفيش أي مفتاح أو توكن.
+// معنى كده: كل جهاز/متصفح هيبقى ليه نسخته الخاصة، ولو مسحت بيانات المتصفح هتضيع البيانات.
+const LOCAL_STORAGE_KEY = 'weekly-tracker-data-v1';
+
+let backendReady = false;
+
+async function checkHealth(){
+  try {
+    const res = await fetch('/api/health');
+    if(res.ok) backendReady = true;
+  } catch(e){
+    console.error('Backend is not reachable', e);
+  }
+}
+
+const CHANNELS = {
+  'القيادي': { accent: 'var(--qiyadi)', glow: 'var(--qiyadi-glow)', icon: '⚡' },
+  'رائج':    { accent: 'var(--rayej)',  glow: 'var(--rayej-glow)',  icon: '🔥' },
+  'عرب جيمرز': { accent: 'var(--gamers)', glow: 'var(--gamers-glow)', icon: '🎮' },
+  'سائح':    { accent: 'var(--saeh)',   glow: 'var(--saeh-glow)',   icon: '✈️' },
+};
+
+function buildDefaultTaskConfig(){
+  const raw = [
+    { name: 'الجمعة',  tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['عرب جيمرز','فيديو جيمنج'] ] },
+    { name: 'السبت',   tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['سائح','فيديو سياحي'] ] },
+    { name: 'الأحد',   tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['عرب جيمرز','فيديو جيمنج'] ] },
+    { name: 'الإثنين', tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['سائح','فيديو سياحي'] ] },
+    { name: 'الثلاثاء', tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['عرب جيمرز','فيديو جيمنج'] ] },
+    { name: 'الأربعاء', tasks: [ ['القيادي','فيديو 1'], ['القيادي','فيديو 2'], ['رائج','فيديو ترند'], ['سائح','فيديو سياحي'] ] },
+  ];
+  return raw.map((day, di) => ({
+    name: day.name,
+    tasks: day.tasks.map((t, ti) => ({ id: `d${di}-t${ti}`, channel: t[0], label: t[1] }))
+  }));
+}
+
+// taskConfig هو المصدر الوحيد لهيكل الأيام والمهام — قابل للتعديل من مودال "تعديل قائمة المهام"
+let taskConfig = buildDefaultTaskConfig();
+
+// سجل الأسابيع السابقة: { [weekKey]: { savedAt, totalDone, totalTasks, perChannel } }
+let historyCache = {};
+
+let state = {}; // { [taskId]: { done: bool, script: string, hook: string } }
+let saveTimer = null;
+let lastSyncedJSON = '';
+
+const NAVY_THUMBNAIL_TEMPLATE = `أنت خبير عالمي في تصميم الصور المصغّرة (YouTube Thumbnails) وصناعة CTR عالي جدًا، ومتخصص في بناء أفكار فيروسيّة تناسب Shorts / Reels / TikTok.
+سيتم تزويدك بالسكريبت الكامل للفيديو.
+مهمتك هي تحليل السكريبت بالكامل ثم استخراج الفكرة الأساسية وأقوى لحظة فيه، وبعدها تنفيذ جميع الخطوات التالية تلقائيًا دون طرح أي أسئلة.
+🎬 السكريبت:
+[ضع السكريبت هنا]
+🎨 هوية القناة (ثابتة إلزاميًا)
+Primary Color:
+#0a295b (Deep Navy Blue)
+Secondary Color:
+#95add4 (Light Steel Blue)
+يلتزم التصميم بهذه الهوية بنسبة كبيرة، ولا تستخدم أي ألوان أخرى إلا إذا كانت ضرورية لزيادة الـCTR.
+Style:
+Premium / Tech / Cinematic / Bold
+⚙️ Workflow
+1. اقرأ السكريبت بالكامل.
+2. استخرج تلقائيًا:
+- عنوان مناسب للفيديو.
+- الفكرة الأساسية.
+- أقوى Hook خلال أول ثوانٍ.
+- العنصر الأكثر إثارة بصريًا.
+3. أنشئ 3 Concepts مختلفة تمامًا:
+🔥 Concept A
+Visual Clickbait / Shock
+اذكر:
+- الفكرة البصرية
+- سبب جذبها
+- نص قصير للثامبنيل
+🔥 Concept B
+Story / Curiosity
+اذكر:
+- الفكرة البصرية
+- سبب جذبها
+- نص قصير للثامبنيل
+🔥 Concept C
+Minimal / Premium
+اذكر:
+- الفكرة البصرية
+- سبب جذبها
+- نص قصير للثامبنيل
+4. بعد عرض الثلاثة Concepts اختر بنفسك أفضل Concept يحقق أعلى CTR بناءً على السكريبت، ولا تطلب مني الاختيار.
+5. بعد ذلك أنشئ برومبت واحد فقط باللغة الإنجليزية.
+🧠 يجب أن يحتوي البرومبت النهائي على:
+Ultra realistic cinematic 9:16 thumbnail (1080×1920)
+Very clear main subject
+Strong emotional facial expression if applicable
+Rule of thirds composition
+Powerful focal dominance
+Cinematic background directly related to the script
+HDR lighting
+Rim light
+Back light
+Professional shadows
+Energy effects
+Glow
+Particles
+Motion streaks
+Color grading dominated by:
+#0a295b
+#95add4
+Arabic text hook:
+Short
+Huge
+Easy to read on mobile
+Placed strategically
+Premium YouTube Shorts / TikTok / Reels thumbnail
+Maximum CTR
+No clutter
+No distractions
+Maximum visual impact within 0.5 seconds
+Output ONLY:
+1- الثلاثة Concepts
+2- أفضل Concept مع سبب اختياره
+3- برومبت إنجليزي واحد فقط
+لا تضف أي شرح أو ملاحظات بعد البرومبت النهائي.
+قبل اختيار الـConcept النهائي، قيّم كل Concept وفق المعايير التالية:
+- Scroll Stopping Power (/25)
+- Curiosity (/25)
+- Emotional Impact (/20)
+- Readability on Mobile (/15)
+- Visual Simplicity (/15)
+أعطِ كل Concept درجة من 100، ثم اختر الأعلى فقط، وبعدها أنشئ البرومبت النهائي بناءً عليه.`;
+
+const CYAN_THUMBNAIL_TEMPLATE = `أنت خبير عالمي في تصميم الصور المصغرة (YouTube Thumbnails) عالية معدل النقر (CTR)، ومتخصص في المحتوى الرائج، الغريب، والصادم على منصات YouTube Shorts / Reels / TikTok.
+سيتم تزويدك بالسكريبت الكامل للفيديو.
+مهمتك هي تحليل السكريبت بالكامل ثم استخراج الفكرة الأساسية وأقوى لحظة فيه، وبعدها إنشاء أفضل أفكار Thumbnail فيروسية دون طرح أي أسئلة.
+---
+# 🎬 السكريبت
+[ضع السكريبت هنا]
+---
+# 🎨 قواعد الهوية البصرية (إلزامي)
+استخدم دائمًا ألوان القناة:
+Primary Color
+#1da8e0
+Secondary Color
+#8fd6ee
+يجب توظيف هذه الألوان داخل:
+* Lighting
+* Glow
+* Energy Effects
+* Frames
+* Typography
+* Graphic Elements
+أسلوب التصميم:
+Modern • Viral • Breaking News • Shock • Premium
+التركيز على:
+* وضوح شديد
+* تباين مرتفع
+* بساطة بصرية
+* إيقاف السكروول خلال أقل من ثانية
+---
+# 🧠 Workflow
+## 1.
+اقرأ السكريبت بالكامل.
+ثم استخرج تلقائيًا:
+* عنوان مناسب للفيديو.
+* الفكرة الأساسية.
+* أقوى Hook في أول ثوانٍ.
+* أكثر عنصر يمكن تحويله إلى Thumbnail فيروسية.
+* المشاعر المسيطرة (صدمة – دهشة – خوف – فضول – غرابة).
+---
+## 2.
+أنشئ 3 Concepts مختلفة تمامًا.
+### 🔥 Concept A
+Shock / Clickbait
+اذكر:
+* الفكرة البصرية
+* لماذا ستوقف السكروول
+* نص Thumbnail (1–4 كلمات)
+---
+### 🔥 Concept B
+Story / Curiosity
+اذكر:
+* الفكرة البصرية
+* سبب الفضول
+* نص Thumbnail (1–4 كلمات)
+---
+### 🔥 Concept C
+Minimal / Powerful
+اذكر:
+* الفكرة البصرية
+* سبب قوتها
+* نص Thumbnail (1–4 كلمات)
+---
+## 3.
+قبل اختيار التصميم النهائي، قيّم كل Concept باستخدام الجدول التالي:
+* Scroll Stopping Power (/25)
+* Curiosity (/25)
+* Emotional Impact (/20)
+* Mobile Readability (/15)
+* Visual Simplicity (/15)
+احسب الدرجة النهائية من 100 لكل Concept.
+ثم اختر تلقائيًا التصميم الأعلى تقييمًا.
+لا تطلب مني اختيار Concept.
+---
+## 4.
+بعد اختيار أفضل Concept، أنشئ برومبت واحد فقط باللغة الإنجليزية.
+---
+# 📸 يجب أن يحتوي البرومبت النهائي على
+Ultra realistic cinematic vertical thumbnail
+1080×1920
+9:16
+Hyper realistic
+HDR
+Sharp focus
+Very high detail
+Maximum CTR
+One dominant subject only
+Strong facial expression (if applicable)
+Rule of thirds composition
+Focal dominance
+Professional depth separation
+Cinematic background directly related to the script
+Detailed environment description
+Camera angle
+Lighting using:
+* #1da8e0
+* #8fd6ee
+Strong glow
+Energy effects
+Motion blur
+Light streaks
+Particles
+Premium color grading
+Arabic Thumbnail Text:
+* 1–4 words only
+* Very large
+* Extremely readable on mobile
+* Positioned strategically
+* High contrast
+* Bold modern Arabic typography
+General Style:
+Viral cinematic hyper-realistic
+Breaking-news feeling
+Maximum visual impact in under 0.5 seconds
+No clutter
+No unnecessary objects
+No distracting details
+---
+# 📤 Output Format
+اعرض فقط بالترتيب:
+1. الثلاثة Concepts.
+2. تقييم كل Concept من 100.
+3. أفضل Concept مع سبب اختياره.
+4. برومبت إنجليزي واحد فقط جاهز لتوليد الصورة.
+لا تضف أي شرح أو ملاحظات بعد البرومبت النهائي.`;
+
+const THUMBNAIL_PROMPTS = {
+  'القيادي': NAVY_THUMBNAIL_TEMPLATE,
+  'رائج': CYAN_THUMBNAIL_TEMPLATE,
+  'عرب جيمرز': CYAN_THUMBNAIL_TEMPLATE,
+};
+
+const TITLES_PROMPT_TEMPLATE = `أنت خبير عالمي في كتابة عناوين الفيديوهات الفيروسية (YouTube Shorts / Reels / TikTok)، ومتخصص في تحقيق أعلى معدل نقر (CTR) دون استخدام عناوين مضللة.
+سأضع لك سكريبت فيديو كامل بين الأقواس.
+مهمتك هي:
+1. اقرأ السكريبت بالكامل وافهم الفكرة الأساسية.
+2. استخرج أقوى لحظة (Hook) أو أكثر معلومة صادمة أو مثيرة للفضول.
+3. حدد المشاعر التي يمكن استغلالها في العنوان (الدهشة، الصدمة، الفضول، الخوف، الإعجاب، المفاجأة...).
+4. أنشئ عناوين جذابة تعتمد على محتوى السكريبت فقط، بدون اختلاق أي معلومات غير موجودة.
+5. اجعل العناوين قصيرة وسريعة وسهلة القراءة على الهاتف.
+6. تجنب الكليك بيت الكاذب، لكن اجعل العنوان يثير الفضول لأقصى درجة.
+7. استخدم اللهجة المصرية الطبيعية.
+8. لا تكرر نفس الفكرة بصياغات مختلفة، بل قدّم زوايا متنوعة.
+قسّم النتائج إلى:
+## 🔥 أفضل 10 عناوين (مرتبة من الأقوى للأضعف)
+لكل عنوان اكتب:
+- العنوان
+- تقييم CTR من 10
+- سبب قوة العنوان (سطر واحد)
+ثم اكتب:
+## 🎯 أفضل 5 عناوين مناسبة لـ YouTube Shorts
+## 📱 أفضل 5 عناوين مناسبة لـ Reels / TikTok
+## ⚡ أفضل 5 عناوين تعتمد على الفضول
+## 😱 أفضل 5 عناوين تعتمد على الصدمة
+## 🤯 أفضل 5 عناوين تعتمد على "مستحيل!"
+## 🧠 أفضل 5 عناوين تبدو وكأنها ستصبح ترند
+وفي النهاية اختر عنوانًا واحدًا فقط باعتباره:
+# 👑 العنوان الذهبي
+ثم اشرح في 3 نقاط فقط لماذا هو الأفضل.
+==========================
+🎬 السكريبت:
+[ضع السكريبت هنا]
+==========================`;
+
+function getTaskState(id){ return state[id] || { done:false, script:'', hook:'' }; }
+function ensureTaskState(id){ if(!state[id]) state[id] = { done:false, script:'', hook:'' }; return state[id]; }
+
+// الأسبوع بيتحسب بادئ من يوم الجمعة (أول يوم في الجدول)
+function getWeekKeyForDate(d){
+  const date = new Date(d);
+  const day = date.getDay(); // 0=أحد ... 5=جمعة ... 6=سبت
+  const diffFromFriday = (day - 5 + 7) % 7;
+  date.setDate(date.getDate() - diffFromFriday);
+  date.setHours(0,0,0,0);
+  return date.toISOString().slice(0,10); // YYYY-MM-DD لتاريخ الجمعة
+}
+function getCurrentWeekKey(){ return getWeekKeyForDate(new Date()); }
+
+function formatWeekLabel(weekKey){
+  const start = new Date(weekKey + 'T00:00:00');
+  const end = new Date(start);
+  end.setDate(end.getDate() + 5); // من الجمعة للأربعاء (6 أيام)
+  const fmt = (dt) => dt.toLocaleDateString('ar-EG', { day:'numeric', month:'short' });
+  return `أسبوع ${fmt(start)} – ${fmt(end)}`;
+}
+
+function formatWeekShort(weekKey){
+  const start = new Date(weekKey + 'T00:00:00');
+  return start.toLocaleDateString('ar-EG', { day:'numeric', month:'short' });
+}
+
+// رسم بياني بسيط (SVG) بيقارن نسبة الإنجاز بين الأسابيع المسجلة، من الأقدم للأحدث
+function buildHistoryChart(weekKeysDesc){
+  if (!weekKeysDesc.length) return '';
+  const chronological = [...weekKeysDesc].sort(); // من الأقدم للأحدث
+
+  const width = 600, height = 170;
+  const paddingX = 20, paddingTop = 26, paddingBottom = 28;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const gap = 10;
+  const barWidth = Math.max(16, (width - paddingX*2) / chronological.length - gap);
+
+  let bars = '';
+  chronological.forEach((wk, i) => {
+    const data = historyCache[wk];
+    const pct = data.totalTasks ? Math.round((data.totalDone/data.totalTasks)*100) : 0;
+    const barHeight = Math.max(2, (pct/100) * plotHeight);
+    const x = paddingX + i * (barWidth + gap);
+    const y = paddingTop + (plotHeight - barHeight);
+    const color = pct >= 80 ? '#3ddc84' : pct >= 40 ? '#f5b942' : '#ff6b81';
+
+    bars += `
+      <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="5" fill="${color}" opacity="0.9"></rect>
+      <text x="${x + barWidth/2}" y="${y - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#eef0f6" font-family="Cairo, sans-serif">${pct}%</text>
+      <text x="${x + barWidth/2}" y="${height - paddingBottom + 16}" text-anchor="middle" font-size="9.5" fill="#a7abbc" font-family="Tajawal, sans-serif">${formatWeekShort(wk)}</text>
+    `;
+  });
+
+  const baselineY = paddingTop + plotHeight;
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" class="history-chart" preserveAspectRatio="xMidYMid meet">
+      <line x1="${paddingX - 6}" y1="${baselineY}" x2="${width - paddingX + 6}" y2="${baselineY}" stroke="rgba(255,255,255,0.12)" stroke-width="1"></line>
+      ${bars}
+    </svg>
+  `;
+}
+
+// نحسب عدد المهام المنجزة/الكلي لكل قناة بناءً على أي تشكيلة أيام وأي حالة (مفيد للأسبوع الحالي أو أي أسبوع مؤرشف)
+function computeChannelStats(cfg, st){
+  const stats = {};
+  Object.keys(CHANNELS).forEach(ch => { stats[ch] = { done:0, total:0 }; });
+  cfg.forEach(day => {
+    day.tasks.forEach(t => {
+      if (!stats[t.channel]) stats[t.channel] = { done:0, total:0 };
+      stats[t.channel].total++;
+      if ((st[t.id] || {}).done) stats[t.channel].done++;
+    });
+  });
+  return stats;
+}
+
+function computeMonthlyStats(){
+  const monthKey = new Date().toISOString().slice(0,7); // YYYY-MM
+  const totals = {};
+  Object.keys(CHANNELS).forEach(ch => { totals[ch] = { done:0, total:0 }; });
+
+  // الأسبوع الحالي اللي لسه شغالين فيه
+  const live = computeChannelStats(taskConfig, state);
+  Object.keys(live).forEach(ch => {
+    totals[ch].done += live[ch].done;
+    totals[ch].total += live[ch].total;
+  });
+
+  // أي أسابيع اتحفظت في السجل ووقعت في نفس الشهر الحالي (بنحسب الأسبوع على الشهر اللي بدأ فيه)
+  Object.entries(historyCache).forEach(([weekKey, wk]) => {
+    if (!weekKey.startsWith(monthKey)) return;
+    Object.entries(wk.perChannel || {}).forEach(([ch, c]) => {
+      if (!totals[ch]) totals[ch] = { done:0, total:0 };
+      totals[ch].done += c.done;
+      totals[ch].total += c.total;
+    });
+  });
+
+  return totals;
+}
+
+function renderMonthlyStats(){
+  const container = document.getElementById('monthlyChannels');
+  if (!container) return;
+  const totals = computeMonthlyStats();
+  container.innerHTML = '';
+  Object.keys(CHANNELS).forEach(ch => {
+    const c = totals[ch] || { done:0, total:0 };
+    const pct = c.total ? Math.round((c.done/c.total)*100) : 0;
+    const row = document.createElement('div');
+    row.className = 'monthly-row';
+    row.style.setProperty('--accent', CHANNELS[ch].accent);
+    row.innerHTML = `
+      <span class="monthly-channel-name">${CHANNELS[ch].icon} ${ch}</span>
+      <div class="monthly-bar"><div class="monthly-bar-fill" style="width:${pct}%"></div></div>
+      <span class="monthly-pct">${pct}%</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+async function archiveCurrentWeek(snapshotState, snapshotConfig){
+  const weekKey = getCurrentWeekKey();
+  const perChannel = computeChannelStats(snapshotConfig, snapshotState);
+  let totalDone = 0, totalTasks = 0;
+  Object.values(perChannel).forEach(c => { totalDone += c.done; totalTasks += c.total; });
+  if (totalTasks === 0) return; // مفيش مهام أصلاً، متسجلش أسبوع فاضي
+
+  historyCache[weekKey] = { savedAt: Date.now(), totalDone, totalTasks, perChannel };
+  
+  if(!backendReady) return;
+  try {
+    const password = document.getElementById('resetPasswordInput').value;
+    await fetch('/api/history/archive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-action-password': password },
+      body: JSON.stringify({ weekKey, totalDone, totalTasks, perChannel })
+    });
+  } catch(e) { console.error('Failed to archive week', e); }
+}
+
+
+function openHistoryModal(){
+  const modal = document.getElementById('historyModal');
+  const body = document.getElementById('historyBody');
+  body.innerHTML = '';
+
+  const weekKeys = Object.keys(historyCache).sort().reverse();
+  if (!weekKeys.length){
+    body.innerHTML = '<p class="history-empty">لسه مفيش أسابيع متسجلة. أول ما تعمل "إعادة تعيين الجدول" هيتسجل أداء الأسبوع الحالي هنا.</p>';
+  } else {
+    const chartWrap = document.createElement('div');
+    chartWrap.className = 'history-chart-wrap';
+    chartWrap.innerHTML = `<div class="history-chart-title">📈 نسبة الإنجاز عبر الأسابيع</div>${buildHistoryChart(weekKeys)}`;
+    body.appendChild(chartWrap);
+
+    weekKeys.forEach(weekKey => {
+      const wk = historyCache[weekKey];
+      const pct = wk.totalTasks ? Math.round((wk.totalDone/wk.totalTasks)*100) : 0;
+
+      const section = document.createElement('div');
+      section.className = 'history-week';
+
+      const header = document.createElement('div');
+      header.className = 'history-week-header';
+      header.innerHTML = `
+        <span class="history-week-date">${formatWeekLabel(weekKey)}</span>
+        <span class="history-week-pct">${pct}% (${wk.totalDone}/${wk.totalTasks})</span>
+      `;
+      section.appendChild(header);
+
+      const channelsWrap = document.createElement('div');
+      channelsWrap.className = 'history-week-channels';
+      Object.keys(CHANNELS).forEach(ch => {
+        const c = (wk.perChannel && wk.perChannel[ch]) || { done:0, total:0 };
+        if (!c.total) return;
+        const chPct = Math.round((c.done/c.total)*100);
+        const row = document.createElement('div');
+        row.className = 'history-channel-row';
+        row.innerHTML = `<span>${CHANNELS[ch].icon} ${ch}</span><span>${c.done}/${c.total} — ${chPct}%</span>`;
+        channelsWrap.appendChild(row);
+      });
+      section.appendChild(channelsWrap);
+
+      body.appendChild(section);
+    });
+  }
+
+  modal.classList.add('open');
+}
+
+function attachHistoryListener(){
+  document.getElementById('openHistoryBtn').addEventListener('click', openHistoryModal);
+  const closeBtn = document.getElementById('closeHistoryBtn');
+  const modal = document.getElementById('historyModal');
+  closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+}
+
+const checkIconSVG = `<svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function buildDayCard(day, dayIdx){
+  const card = document.createElement('div');
+  card.className = 'day-card';
+  card.dataset.day = dayIdx;
+
+  const header = document.createElement('div');
+  header.className = 'day-header';
+  header.innerHTML = `
+    <span class="day-name">${day.name}</span>
+    <div class="day-bar"><div class="day-bar-fill" id="bar-${dayIdx}" style="width:0%"></div></div>
+    <span class="day-count" id="count-${dayIdx}">0/${day.tasks.length}</span>
+    <span class="day-check-icon">✅</span>
+  `;
+  card.appendChild(header);
+
+  const tasksWrap = document.createElement('div');
+  tasksWrap.className = 'tasks';
+
+  day.tasks.forEach((task) => {
+    const { id, channel, label } = task;
+    const meta = CHANNELS[channel] || CHANNELS['القيادي'];
+
+    const block = document.createElement('div');
+    block.className = 'task-block';
+
+    const row = document.createElement('label');
+    row.className = 'task';
+    row.style.setProperty('--accent', meta.accent);
+    row.style.setProperty('--accent-glow', meta.glow);
+
+    row.innerHTML = `
+      <input type="checkbox" id="chk-${id}" data-id="${id}">
+      <span class="checkbox-custom">${checkIconSVG}</span>
+      <span class="channel-badge">${meta.icon} ${channel}</span>
+      <span class="task-label-wrap">
+        <span class="task-label">${label}</span>
+        <span class="task-sub">تم الإنشاء والرفع</span>
+      </span>
+    `;
+
+    const scriptBtn = document.createElement('button');
+    scriptBtn.type = 'button';
+    scriptBtn.className = 'script-toggle';
+    scriptBtn.id = `scriptBtn-${id}`;
+    scriptBtn.innerHTML = `📝 <span>اكتب سكريبت</span>`;
+    row.appendChild(scriptBtn);
+
+    block.appendChild(row);
+
+    const hasThumbTemplate = !!THUMBNAIL_PROMPTS[channel];
+
+    const panel = document.createElement('div');
+    panel.className = 'script-panel';
+    panel.id = `panel-${id}`;
+    panel.innerHTML = `
+      <input type="text" class="hook-input" id="hook-${id}" placeholder="🪝 الهوك — أول جملة هتقولها في أول ثانيتين...">
+      <textarea id="script-${id}" placeholder="اكتب هنا سكريبت ${channel} — ${label}..."></textarea>
+      <div class="script-hint">بيتحفظ لوحده أول ما توقف تكتب <span class="save-flash" id="flash-${id}">✓ اتحفظ</span></div>
+      <div class="thumb-prompt-row">
+        ${hasThumbTemplate ? `
+        <button type="button" class="thumb-prompt-btn" id="thumbBtn-${id}" disabled>📋 نسخ برومبت ثامبنيل</button>
+        <span class="thumb-flash" id="thumbFlash-${id}">✓ اتنسخ، حطه في أداة توليد الصور</span>` : ''}
+        <button type="button" class="titles-prompt-btn" id="titlesBtn-${id}" disabled>🎯 اقتراح عناوين</button>
+        <span class="titles-flash" id="titlesFlash-${id}">✓ اتنسخ، حطه في الشات</span>
+      </div>
+    `;
+    block.appendChild(panel);
+
+    tasksWrap.appendChild(block);
+
+    // event: checkbox
+    row.querySelector('input').addEventListener('change', (e) => {
+      ensureTaskState(id).done = e.target.checked;
+      updateUI();
+      queueSave(id);
+    });
+
+    // event: toggle script panel
+    scriptBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      panel.classList.toggle('open');
+    });
+
+    // event: خانة الهوك
+    const hookInput = panel.querySelector('.hook-input');
+    hookInput.addEventListener('input', (e) => {
+      ensureTaskState(id).hook = e.target.value;
+      queueSave(id);
+    });
+
+    // event: script textarea
+    const textarea = panel.querySelector('textarea');
+    textarea.addEventListener('input', (e) => {
+      ensureTaskState(id).script = e.target.value;
+      updateScriptButton(id);
+      queueSave(id);
+      const flash = document.getElementById(`flash-${id}`);
+      flash.classList.remove('show');
+      clearTimeout(textarea._flashTimer);
+      textarea._flashTimer = setTimeout(() => flash.classList.add('show'), 500);
+    });
+
+    // event: نسخ برومبت الثامبنيل مع حقن السكريبت مكان [ضع السكريبت هنا] (لو القناة ليها قالب)
+    if (hasThumbTemplate){
+      const thumbBtn = panel.querySelector('.thumb-prompt-btn');
+      const thumbFlash = panel.querySelector('.thumb-flash');
+      thumbBtn.addEventListener('click', async () => {
+        const scriptText = (getTaskState(id).script || '').trim();
+        if (!scriptText) return;
+        const template = THUMBNAIL_PROMPTS[channel];
+        const finalPrompt = template.replace('[ضع السكريبت هنا]', scriptText);
+        try {
+          await navigator.clipboard.writeText(finalPrompt);
+          thumbFlash.classList.add('show');
+          clearTimeout(thumbBtn._flashTimer);
+          thumbBtn._flashTimer = setTimeout(() => thumbFlash.classList.remove('show'), 2500);
+        } catch(err){
+          console.error('تعذر نسخ برومبت الثامبنيل', err);
+        }
+      });
+    }
+
+    // event: نسخ برومبت اقتراح العناوين مع حقن السكريبت مكان [ضع السكريبت هنا] (يظهر لأي فيديو بعد كتابة السكريبت)
+    {
+      const titlesBtn = panel.querySelector('.titles-prompt-btn');
+      const titlesFlash = panel.querySelector('.titles-flash');
+      titlesBtn.addEventListener('click', async () => {
+        const scriptText = (getTaskState(id).script || '').trim();
+        if (!scriptText) return;
+        const finalPrompt = TITLES_PROMPT_TEMPLATE.replace('[ضع السكريبت هنا]', scriptText);
+        try {
+          await navigator.clipboard.writeText(finalPrompt);
+          titlesFlash.classList.add('show');
+          clearTimeout(titlesBtn._flashTimer);
+          titlesBtn._flashTimer = setTimeout(() => titlesFlash.classList.remove('show'), 2500);
+        } catch(err){
+          console.error('تعذر نسخ برومبت العناوين', err);
+        }
+      });
+    }
+  });
+
+  card.appendChild(tasksWrap);
+  return card;
+}
+
+function updateScriptButton(id){
+  const btn = document.getElementById(`scriptBtn-${id}`);
+  if (!btn) return;
+  const hasScript = !!(getTaskState(id).script && getTaskState(id).script.trim().length > 0);
+  btn.classList.toggle('has-script', hasScript);
+  btn.querySelector('span').textContent = hasScript ? 'السكريبت جاهز' : 'اكتب سكريبت';
+  btn.firstChild.textContent = hasScript ? '✅ ' : '📝 ';
+
+  const thumbBtn = document.getElementById(`thumbBtn-${id}`);
+  if (thumbBtn) thumbBtn.disabled = !hasScript;
+
+  const titlesBtn = document.getElementById(`titlesBtn-${id}`);
+  if (titlesBtn) titlesBtn.disabled = !hasScript;
+}
+
+function buildWeekStrip(){
+  const strip = document.getElementById('weekStrip');
+  strip.innerHTML = '';
+  taskConfig.forEach((day, dayIdx) => {
+    const node = document.createElement('button');
+    node.className = 'strip-node';
+    node.innerHTML = `<span class="strip-dot" id="dot-${dayIdx}"></span><span class="strip-label">${day.name}</span>`;
+    node.addEventListener('click', () => {
+      const cardEl = document.querySelector(`.day-card[data-day="${dayIdx}"]`);
+      if (cardEl) cardEl.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+    strip.appendChild(node);
+  });
+}
+
+// تحديث اسم التاب (Browser Tab) بعدد المهام الباقية النهاردة — من غير ما تفتح الموقع كل شوية
+const ORIGINAL_TAB_TITLE = document.title;
+const WEEKDAY_TO_DAYNAME = { 0:'الأحد', 1:'الإثنين', 2:'الثلاثاء', 3:'الأربعاء', 4:null, 5:'الجمعة', 6:'السبت' };
+
+function updateTabTitle(){
+  const todayName = WEEKDAY_TO_DAYNAME[new Date().getDay()];
+  if (!todayName){
+    document.title = ORIGINAL_TAB_TITLE; // النهاردة الخميس، مفيش مهام متتبّعة
+    return;
+  }
+  const today = taskConfig.find(d => d.name === todayName);
+  if (!today || !today.tasks.length){
+    document.title = ORIGINAL_TAB_TITLE;
+    return;
+  }
+  const total = today.tasks.length;
+  const done = today.tasks.filter(t => getTaskState(t.id).done).length;
+  const remaining = total - done;
+  document.title = remaining > 0
+    ? `(${remaining}) مهام باقية النهاردة`
+    : `✅ خلصت مهام النهاردة`;
+}
+
+function renderAll(){
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+  taskConfig.forEach((day, idx) => grid.appendChild(buildDayCard(day, idx)));
+  buildWeekStrip();
+}
+
+function updateUI(){
+  let totalDone = 0, totalTasks = 0;
+
+  taskConfig.forEach((day, dayIdx) => {
+    let doneCount = 0;
+    day.tasks.forEach(t => {
+      if (getTaskState(t.id).done) doneCount++;
+    });
+    const total = day.tasks.length;
+    totalDone += doneCount;
+    totalTasks += total;
+
+    const pct = total ? Math.round((doneCount/total)*100) : 0;
+    const barEl = document.getElementById(`bar-${dayIdx}`);
+    if (barEl) barEl.style.width = pct + '%';
+    const countEl = document.getElementById(`count-${dayIdx}`);
+    if (countEl) countEl.textContent = `${doneCount}/${total}`;
+
+    const card = document.querySelector(`.day-card[data-day="${dayIdx}"]`);
+    if (card) card.classList.toggle('complete', total > 0 && doneCount === total);
+
+    const dot = document.getElementById(`dot-${dayIdx}`);
+    if (dot){
+      dot.classList.toggle('done', total > 0 && doneCount === total);
+      dot.classList.toggle('partial', doneCount > 0 && doneCount < total);
+    }
+  });
+
+  const overallPct = totalTasks ? Math.round((totalDone/totalTasks)*100) : 0;
+  const circumference = 201;
+  document.getElementById('ringFg').style.strokeDashoffset = circumference - (circumference*overallPct/100);
+  document.getElementById('ringNum').textContent = overallPct + '%';
+  document.getElementById('overallCount').textContent = `${totalDone} / ${totalTasks} مهمة`;
+
+  updateTabTitle();
+  renderMonthlyStats();
+}
+
+async function loadAllData(){
+  if (!backendReady){ state = {}; return; }
+  try {
+    const [configRes, stateRes, historyRes] = await Promise.all([
+      fetch('/api/task-config').then(r => r.json()),
+      fetch('/api/task-state').then(r => r.json()),
+      fetch('/api/history').then(r => r.json())
+    ]);
+    
+    if (Array.isArray(configRes) && configRes.length) taskConfig = configRes;
+    state = stateRes || {};
+    historyCache = historyRes || {};
+  } catch (e) {
+    console.error('تعذر تحميل البيانات من السيرفر', e);
+    state = {};
+  }
+}
+
+let dirtyTasks = new Set();
+function queueSave(taskId){
+  if(taskId) dirtyTasks.add(taskId);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveAllData, 400);
+}
+
+async function saveAllData(){
+  if (!backendReady) return;
+  const tasksToSave = Array.from(dirtyTasks);
+  dirtyTasks.clear();
+  
+  for(const id of tasksToSave){
+    const s = state[id];
+    if(s) {
+      try {
+        await fetch(`/api/task-state/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(s)
+        });
+      } catch(e) { console.error('Save failed for task ' + id, e); }
+    }
+  }
+}
+
+// Polling instead of real-time sync
+function attachRealtimeSync(){
+  if (!backendReady) return;
+  setInterval(async () => {
+    try {
+      const stateRes = await fetch('/api/task-state').then(r => r.json());
+      state = stateRes || {};
+      applyStateToInputs();
+      updateUI();
+    } catch(err){
+      console.error('Polling error', err);
+    }
+  }, 15000);
+}
+
+async function saveTaskConfig(){
+  if (!backendReady) return false;
+  try {
+    const password = document.getElementById('resetPasswordInput').value;
+    await fetch('/api/task-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-action-password': password },
+      body: JSON.stringify({ taskConfig })
+    });
+  } catch(e) { console.error('Failed to save config', e); }
+  return true;
+}
+
+function applyStateToInputs(){
+  taskConfig.forEach(day => {
+    day.tasks.forEach(t => {
+      const id = t.id;
+      const s = getTaskState(id);
+      const chk = document.getElementById(`chk-${id}`);
+      if (chk) chk.checked = !!s.done;
+      const hookEl = document.getElementById(`hook-${id}`);
+      if (hookEl && document.activeElement !== hookEl) hookEl.value = s.hook || '';
+      const ta = document.getElementById(`script-${id}`);
+      // لو المستخدم بيكتب في التكست اريا دي دلوقتي، ميتكتبش فوقها من تحديث جاي من جهاز تاني
+      if (ta && document.activeElement !== ta) ta.value = s.script || '';
+      updateScriptButton(id);
+    });
+  });
+}
+
+const ACTION_PASSWORD = '2002';
+let pendingPasswordAction = null; // 'reset' | 'editTasks'
+
+async function performFullReset(){
+  const snapshotState = JSON.parse(JSON.stringify(state));
+  const snapshotConfig = taskConfig;
+  
+  const weekKey = getCurrentWeekKey();
+  const perChannel = computeChannelStats(snapshotConfig, snapshotState);
+  let totalDone = 0, totalTasks = 0;
+  Object.values(perChannel).forEach(c => { totalDone += c.done; totalTasks += c.total; });
+
+  if(totalTasks > 0) {
+    historyCache[weekKey] = { savedAt: Date.now(), totalDone, totalTasks, perChannel };
+  }
+
+  state = {};
+  document.querySelectorAll('.task input[type="checkbox"]').forEach(input => input.checked = false);
+  document.querySelectorAll('.hook-input').forEach(h => h.value = '');
+  document.querySelectorAll('.script-panel textarea').forEach(ta => ta.value = '');
+  document.querySelectorAll('.script-panel').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.script-toggle').forEach(btn => {
+    btn.classList.remove('has-script');
+    btn.firstChild.textContent = '📝 ';
+    btn.querySelector('span').textContent = 'اكتب سكريبت';
+  });
+  document.querySelectorAll('.thumb-prompt-btn').forEach(btn => btn.disabled = true);
+  document.querySelectorAll('.thumb-flash').forEach(f => f.classList.remove('show'));
+  document.querySelectorAll('.titles-prompt-btn').forEach(btn => btn.disabled = true);
+  document.querySelectorAll('.titles-flash').forEach(f => f.classList.remove('show'));
+  updateUI();
+
+  if(!backendReady) return;
+  try {
+    const password = document.getElementById('resetPasswordInput').value;
+    await fetch('/api/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-action-password': password },
+      body: JSON.stringify({ weekKey, totalDone, totalTasks, perChannel })
+    });
+  } catch(e) { console.error('Failed to reset', e); }
+}
+
+function openPasswordModal(action){
+  pendingPasswordAction = action;
+  const modal = document.getElementById('resetModal');
+  const title = document.getElementById('modalTitle');
+  const desc = document.getElementById('modalDesc');
+  if (action === 'reset'){
+    title.textContent = 'متأكد إنك عايز تصفّر الجدول؟';
+    desc.textContent = 'هيتسجل أداء الأسبوع ده في السجل تلقائيًا، وبعدين هيتمسح كل الـ checkboxes والسكريبتات والهوكس. اكتب الباسورد عشان تأكد.';
+  } else {
+    title.textContent = 'تعديل قائمة المهام';
+    desc.textContent = 'الباسورد مطلوب عشان تقدر تضيف أو تشيل أو تعدّل أي مهمة في الجدول.';
+  }
+  modal.classList.add('open');
+  const input = document.getElementById('resetPasswordInput');
+  input.value = '';
+  document.getElementById('resetError').classList.remove('show');
+  setTimeout(() => input.focus(), 50);
+}
+
+function attachResetListener(){
+  const modal = document.getElementById('resetModal');
+  const input = document.getElementById('resetPasswordInput');
+  const errorMsg = document.getElementById('resetError');
+
+  function closeModal(){
+    modal.classList.remove('open');
+  }
+  async function tryConfirm(){
+    const val = input.value;
+    try {
+      const res = await fetch('/api/auth/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: val })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const action = pendingPasswordAction;
+        closeModal();
+        if (action === 'reset') performFullReset();
+        else if (action === 'editTasks') openTaskEditorModal();
+      } else {
+        throw new Error('Invalid');
+      }
+    } catch(err) {
+      errorMsg.classList.add('show');
+      input.classList.remove('shake');
+      void input.offsetWidth;
+      input.classList.add('shake');
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  document.getElementById('openResetModalBtn').addEventListener('click', () => openPasswordModal('reset'));
+  document.getElementById('cancelResetBtn').addEventListener('click', closeModal);
+  document.getElementById('confirmResetBtn').addEventListener('click', tryConfirm);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryConfirm(); });
+}
+
+// ===== مودال تعديل قائمة المهام =====
+function buildEditorTaskRow(task){
+  const row = document.createElement('div');
+  row.className = 'editor-task-row';
+  if (task.id) row.dataset.taskId = task.id;
+
+  const select = document.createElement('select');
+  select.className = 'editor-channel-select';
+  Object.keys(CHANNELS).forEach(ch => {
+    const opt = document.createElement('option');
+    opt.value = ch;
+    opt.textContent = `${CHANNELS[ch].icon} ${ch}`;
+    if (ch === task.channel) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'editor-label-input';
+  input.value = task.label || '';
+  input.placeholder = 'اسم المهمة...';
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'editor-delete-btn';
+  delBtn.textContent = '🗑';
+  delBtn.title = 'حذف المهمة دي';
+  delBtn.addEventListener('click', () => row.remove());
+
+  row.appendChild(select);
+  row.appendChild(input);
+  row.appendChild(delBtn);
+  return row;
+}
+
+function openTaskEditorModal(){
+  const modal = document.getElementById('taskEditorModal');
+  const body = document.getElementById('editorBody');
+  body.innerHTML = '';
+
+  taskConfig.forEach((day, dayIdx) => {
+    const section = document.createElement('div');
+    section.className = 'editor-day-section';
+    section.dataset.day = dayIdx;
+
+    const title = document.createElement('div');
+    title.className = 'editor-day-title';
+    title.textContent = day.name;
+    section.appendChild(title);
+
+    const list = document.createElement('div');
+    list.className = 'editor-tasks-list';
+    day.tasks.forEach(task => list.appendChild(buildEditorTaskRow(task)));
+    section.appendChild(list);
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'editor-add-btn';
+    addBtn.textContent = '+ إضافة مهمة';
+    addBtn.addEventListener('click', () => {
+      list.appendChild(buildEditorTaskRow({ id: null, channel: 'القيادي', label: 'مهمة جديدة' }));
+    });
+    section.appendChild(addBtn);
+
+    body.appendChild(section);
+  });
+
+  modal.classList.add('open');
+}
+
+function closeTaskEditorModal(){
+  document.getElementById('taskEditorModal').classList.remove('open');
+}
+
+async function saveTaskEditor(){
+  const body = document.getElementById('editorBody');
+  const sections = [...body.querySelectorAll('.editor-day-section')];
+
+  const newConfig = sections.map(section => {
+    const dayIdx = Number(section.dataset.day);
+    const dayName = taskConfig[dayIdx].name;
+    const rows = [...section.querySelectorAll('.editor-task-row')];
+    const tasks = rows.map((row, i) => {
+      const channel = row.querySelector('.editor-channel-select').value;
+      const label = row.querySelector('.editor-label-input').value.trim() || 'مهمة بدون اسم';
+      const existingId = row.dataset.taskId;
+      const id = existingId || `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}-${i}`;
+      return { id, channel, label };
+    });
+    return { name: dayName, tasks };
+  });
+
+  taskConfig = newConfig;
+  renderAll();
+  applyStateToInputs();
+  updateUI();
+  closeTaskEditorModal();
+
+  await saveTaskConfig();
+}
+
+function attachTaskEditorListener(){
+  document.getElementById('openTaskEditorBtn').addEventListener('click', () => openPasswordModal('editTasks'));
+  document.getElementById('cancelEditorBtn').addEventListener('click', closeTaskEditorModal);
+  document.getElementById('saveEditorBtn').addEventListener('click', saveTaskEditor);
+  document.getElementById('taskEditorModal').addEventListener('click', (e) => {
+    if (e.target.id === 'taskEditorModal') closeTaskEditorModal();
+  });
+}
+
+async function init(){
+  renderAll(); // نعرض القائمة الافتراضية فورًا من غير ما ننتظر الشبكة
+  attachResetListener();
+  attachTaskEditorListener();
+  attachHistoryListener();
+  updateUI();
+
+  await checkHealth();
+  await loadAllData();
+  renderAll(); // نعيد البناء لو فيه قائمة مهام مخصصة محفوظة
+  applyStateToInputs();
+  updateUI();
+  attachRealtimeSync();
+}
+
+init();
+</script>
+
+</body>
+</html>
