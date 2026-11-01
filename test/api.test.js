@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, mockFetch, NOW, WEEK_START } from './helpers.js';
 import { runReminderCheck } from '../server/scheduler.js';
+import { monthlyCommitment } from '../server/store.js';
 
 async function withServer(opts, fn) {
   const s = await startTestServer(opts);
@@ -311,6 +312,21 @@ test('توليد الصورة المصغرة بـ Gemini (طلب وهمي): بي
   await withServer({ env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: noImage }, async (s) => {
     const { entries } = await state(s);
     assert.equal((await s.post(`/api/entries/${entries[0].id}/thumbnail`, {})).status, 502);
+  });
+});
+
+test('الإحصائيات: مهمة الأحد 1 نوفمبر لا تُحتسب في أكتوبر رغم أن أسبوعها بدأ 31 أكتوبر', async () => {
+  await withServer({}, async (s) => {
+    const current = await state(s);
+    const channelId = current.channels[0].id;
+    s.db.prepare('DELETE FROM entries').run();
+    const ins = s.db.prepare('INSERT INTO entries(week_start, channel_id, title, day, is_video) VALUES (?, ?, ?, ?, 1)');
+    ins.run('2026-10-31', channelId, 'فيديو السبت', 6);
+    ins.run('2026-10-31', channelId, 'فيديو الأحد', 0);
+    const oct = monthlyCommitment(s.db, '2026-10-01', '2026-11-01');
+    const nov = monthlyCommitment(s.db, '2026-11-01', '2026-12-01');
+    assert.equal(oct[0].planned, 1);
+    assert.equal(nov[0].planned, 1);
   });
 });
 
