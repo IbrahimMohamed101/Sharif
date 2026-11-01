@@ -27,3 +27,20 @@ jobs:
           node --check server/store.js
           node --check server/app.js
       - run: npm test
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+          cache: npm
+      - run: npm ci
+      - name: Install test browser
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Verify proofreading and notes on desktop and phone
+        run: node e2e/proofread-smoke.mjs
