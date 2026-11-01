@@ -34,10 +34,17 @@ export async function runReminderCheck({ db, push, now = () => new Date(), force
 }
 
 export function startScheduler({ db, push, intervalMs = 30_000, log = console }) {
-  const tick = () =>
-    runReminderCheck({ db, push }).catch((e) => log.error('[reminder] فشل فحص التذكير:', e.message));
+  let running = false;
+  let stopped = false;
+  const tick = () => {
+    if (running || stopped) return; // Sending a slow notification must not trigger a duplicate run.
+    running = true;
+    runReminderCheck({ db, push })
+      .catch((e) => log.error('[reminder] فشل فحص التذكير:', e.message))
+      .finally(() => { running = false; });
+  };
   tick();
   const t = setInterval(tick, intervalMs);
   t.unref?.();
-  return () => clearInterval(t);
+  return () => { stopped = true; clearInterval(t); };
 }
