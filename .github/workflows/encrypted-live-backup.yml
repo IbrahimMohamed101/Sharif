@@ -1,0 +1,28 @@
+name: Encrypted Sharif Live Backup
+on:
+  push:
+    branches:
+      - backup/encrypted-live-snapshot-2026-11-02
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Run read-only encrypted live backup
+        run: node tools/backup-live-snapshot.mjs
+      - name: Upload encrypted backup and summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharif-live-encrypted-backup
+          path: |
+            sharif-live-snapshot.enc.json
+            sharif-live-snapshot-summary.json
+          if-no-files-found: error
+          retention-days: 30
