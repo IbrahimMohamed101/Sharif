@@ -3,10 +3,10 @@ import { chromium } from 'playwright';
 import { startTestServer } from '../test/helpers.js';
 
 // Browser-level smoke test with an isolated in-memory database and a mocked AI result.
-const server = await startTestServer({ env: { GEMINI_API_KEY: 'browser-test-key' } });
 const browser = await chromium.launch({ headless: true });
 try {
   for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+    const server = await startTestServer({ env: { GEMINI_API_KEY: 'browser-test-key' } });
     const page = await browser.newPage({ viewport });
     try {
       await page.goto(server.base);
@@ -49,9 +49,9 @@ try {
       console.log('PASS browser', viewport.width, 'x', viewport.height);
     } finally {
       await page.close();
+      await server.close();
     }
   }
 } finally {
   await browser.close();
-  await server.close();
 }
