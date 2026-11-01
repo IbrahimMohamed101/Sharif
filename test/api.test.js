@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, mockFetch, NOW, WEEK_START } from './helpers.js';
 import { runReminderCheck } from '../server/scheduler.js';
+import { monthlyCommitment } from '../server/store.js';
 
 async function withServer(opts, fn) {
   const s = await startTestServer(opts);
@@ -212,6 +213,61 @@ test('توليد العناوين بـ Gemini و OpenAI (طلب وهمي)', asyn
   });
 });
 
+
+test('تدقيق Gemini: يحدث السكريبت فورًا ويحافظ على الملاحظات والروابط', async () => {
+  const gemini = mockFetch(() => ({ body: { candidates: [{ content: { parts: [{ text: 'النص بعد التصحيح.' }] } }] } }));
+  await withServer({ env: { GEMINI_API_KEY: 'mock-gemini' }, fetchImpl: gemini }, async (s) => {
+    const { entries } = await state(s);
+    const id = entries[0].id;
+    const notes = 'مرجع وملاحظات: https://example.com/source';
+    await s.patch(`/api/entries/${id}`, { script: 'النص قبل التصحيح', notes });
+    const result = await s.post(`/api/entries/${id}/proofread`, {});
+    assert.equal(result.status, 200);
+    assert.equal(result.json.script, 'النص بعد التصحيح.');
+    assert.equal(result.json.entry.script, result.json.script);
+    assert.equal(result.json.entry.notes, notes);
+    assert.equal((await state(s)).entries.find((e) => e.id === id).script, result.json.script);
+    assert.match(JSON.parse(gemini.calls[0].init.body).contents[0].parts[0].text, /النص قبل التصحيح/);
+  });
+});
+
+test('OpenRouter: اختيار المزوّد من إعدادات المشروع ثم توليد العناوين', async () => {
+  const ai = mockFetch(() => ({ body: { choices: [{ message: { content: '["عنوان مناسب"]' } }] } }));
+  await withServer({ env: { OPENROUTER_API_KEY: 'mock-openrouter' }, fetchImpl: ai }, async (s) => {
+    const saved = await s.put('/api/settings', { aiProvider: 'openrouter' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.aiProvider, 'openrouter');
+    const { entries } = await state(s);
+    const response = await s.post(`/api/entries/${entries[0].id}/titles`, {});
+    assert.equal(response.status, 200);
+    assert.equal(response.json.provider, 'openrouter');
+    assert.deepEqual(response.json.titles, ['عنوان مناسب']);
+  });
+});
+
+test('الأسابيع المستقبلية تتبع القالب الجديد، ولا تحذف مسودات أو عناوين مولّدة', async () => {
+  await withServer({}, async (s) => {
+    const template = (await s.get('/api/template')).json;
+    const original = await state(s);
+    const current = original.entries.find((e) => e.template_id === template[1].id);
+    s.db.prepare('UPDATE entries SET titles = ? WHERE id = ?').run('["عنوان مولّد"]', current.id);
+    const future = await state(s, '?week=2026-10-31');
+    const futureTask = future.entries.find((e) => e.template_id === template[0].id);
+    assert.ok(futureTask);
+    const update = await s.put('/api/template', { tasks: [
+      { ...template[0], title: 'المهمة بعد التحديث' },
+      ...template.slice(2),
+    ] });
+    assert.equal(update.status, 200);
+    const again = await state(s, '?week=2026-10-31');
+    assert.equal(again.entries.find((e) => e.id === futureTask.id).title, 'المهمة بعد التحديث');
+    const kept = (await state(s)).entries.find((e) => e.id === current.id);
+    assert.ok(kept, 'المهمة صاحبة العناوين المولّدة لا تُحذف');
+    assert.equal(kept.template_id, null);
+    assert.deepEqual(kept.titles, ['عنوان مولّد']);
+  });
+});
+
 test('العناوين: من غير مفتاح → 400 برسالة واضحة، وخطأ المزوّد → 502 من غير تسريب المفتاح', async () => {
   await withServer({}, async (s) => {
     const { entries } = await state(s);
@@ -256,6 +312,21 @@ test('توليد الصورة المصغرة بـ Gemini (طلب وهمي): بي
   await withServer({ env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: noImage }, async (s) => {
     const { entries } = await state(s);
     assert.equal((await s.post(`/api/entries/${entries[0].id}/thumbnail`, {})).status, 502);
+  });
+});
+
+test('الإحصائيات: مهمة الأحد 1 نوفمبر لا تُحتسب في أكتوبر رغم أن أسبوعها بدأ 31 أكتوبر', async () => {
+  await withServer({}, async (s) => {
+    const current = await state(s);
+    const channelId = current.channels[0].id;
+    s.db.prepare('DELETE FROM entries').run();
+    const ins = s.db.prepare('INSERT INTO entries(week_start, channel_id, title, day, is_video) VALUES (?, ?, ?, ?, 1)');
+    ins.run('2026-10-31', channelId, 'فيديو السبت', 6);
+    ins.run('2026-10-31', channelId, 'فيديو الأحد', 0);
+    const oct = monthlyCommitment(s.db, '2026-10-01', '2026-11-01');
+    const nov = monthlyCommitment(s.db, '2026-11-01', '2026-12-01');
+    assert.equal(oct[0].planned, 1);
+    assert.equal(nov[0].planned, 1);
   });
 });
 

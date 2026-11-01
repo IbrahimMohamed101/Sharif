@@ -209,7 +209,7 @@ export function validateSettingsPatch(patch) {
     out.timezone = patch.timezone;
   }
   if ('aiProvider' in patch) {
-    if (!['auto', 'anthropic', 'gemini', 'openai'].includes(patch.aiProvider)) throw bad('مزوّد الذكاء الاصطناعي مش مدعوم');
+    if (!['auto', 'anthropic', 'gemini', 'openai', 'openrouter'].includes(patch.aiProvider)) throw bad('مزوّد الذكاء الاصطناعي مش مدعوم');
     out.aiProvider = patch.aiProvider;
   }
   if ('thumbAspect' in patch) {
@@ -547,6 +547,8 @@ export function replaceTemplate(db, tasks, currentWeekStart, target) {
     const channelOk = (id) => (id && getChannel(db, id) ? id : null);
     const existing = new Set(db.prepare('SELECT id FROM template_tasks').all().map((r) => num(r.id)));
     const keep = new Set();
+    // Weeks visited in advance already have entries: keep them in sync with the template.
+    const weeks = db.prepare('SELECT week_start FROM weeks WHERE week_start >= ? ORDER BY week_start').all(currentWeekStart).map((w) => w.week_start);
     clean.forEach((t, i) => {
       const ch = channelOk(t.channel_id);
       let id = t.id && existing.has(t.id) ? t.id : null;
@@ -562,23 +564,26 @@ export function replaceTemplate(db, tasks, currentWeekStart, target) {
         );
       }
       keep.add(id);
-      const entry = db.prepare('SELECT id, done FROM entries WHERE week_start = ? AND template_id = ?').get(currentWeekStart, id);
-      if (!entry) {
-        db.prepare(
-          'INSERT INTO entries(week_start, template_id, channel_id, title, day, is_video, position) VALUES(?, ?, ?, ?, ?, ?, ?)',
-        ).run(currentWeekStart, id, ch, t.title, t.day, t.is_video, i);
-      } else if (!entry.done) {
-        db.prepare('UPDATE entries SET channel_id = ?, title = ?, day = ?, is_video = ?, position = ? WHERE id = ?').run(
-          ch, t.title, t.day, t.is_video, i, entry.id,
-        );
+      for (const weekStart of weeks) {
+        const entry = db.prepare('SELECT id, done, script, notes, chosen_title, titles, thumb_file, thumb_prompt FROM entries WHERE week_start = ? AND template_id = ?').get(weekStart, id);
+        if (!entry) {
+          db.prepare('INSERT INTO entries(week_start, template_id, channel_id, title, day, is_video, position) VALUES(?, ?, ?, ?, ?, ?, ?)')
+            .run(weekStart, id, ch, t.title, t.day, t.is_video, i);
+        } else if (!entry.done && !entry.script && !entry.notes && !entry.chosen_title && !entry.thumb_file && !entry.thumb_prompt && entry.titles === '[]') {
+          // An untouched entry follows the template; a drafted one stays unchanged.
+          db.prepare('UPDATE entries SET channel_id = ?, title = ?, day = ?, is_video = ?, position = ? WHERE id = ?')
+            .run(ch, t.title, t.day, t.is_video, i, entry.id);
+        }
       }
     });
     for (const id of existing) {
       if (keep.has(id)) continue;
       db.prepare('DELETE FROM template_tasks WHERE id = ?').run(id);
-      const e = db.prepare('SELECT id, done, script, notes FROM entries WHERE week_start = ? AND template_id = ?').get(currentWeekStart, id);
-      if (e) {
-        if (!e.done && !e.script && !e.notes) db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
+      for (const weekStart of weeks) {
+        const e = db.prepare('SELECT id, done, script, notes, titles, chosen_title, thumb_file, thumb_prompt, uploaded_at, script_ready FROM entries WHERE week_start = ? AND template_id = ?').get(weekStart, id);
+        if (!e) continue;
+        const hasWork = e.done || e.script || e.notes || e.chosen_title || e.thumb_file || e.thumb_prompt || e.uploaded_at || e.script_ready || (e.titles && e.titles !== '[]');
+        if (!hasWork) db.prepare('DELETE FROM entries WHERE id = ?').run(e.id);
         else db.prepare('UPDATE entries SET template_id = NULL WHERE id = ?').run(e.id);
       }
     }
@@ -619,7 +624,14 @@ export function monthlyCommitment(db, from, to) {
   const rows = db
     .prepare(
       `SELECT channel_id, COUNT(*) AS planned, SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) AS done
-       FROM entries WHERE is_video = 1 AND week_start >= ? AND week_start < ?
+       FROM entries
+       WHERE is_video = 1
+         AND (CASE WHEN day IS NULL THEN week_start
+                   ELSE date(week_start, '+' || ((day - CAST(strftime('%w', week_start) AS INTEGER) + 7) % 7) || ' days')
+              END) >= ?
+         AND (CASE WHEN day IS NULL THEN week_start
+                   ELSE date(week_start, '+' || ((day - CAST(strftime('%w', week_start) AS INTEGER) + 7) % 7) || ' days')
+              END) < ?
        GROUP BY channel_id`,
     )
     .all(from, to);

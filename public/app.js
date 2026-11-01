@@ -9,6 +9,7 @@ const state = {
   sDay: null, // اليوم المختار في صفحة السكريبتات
   bank: [], // مخزن السكريبتات
   busy: new Set(),
+  notesOpen: new Set(), // Keep each script's accordion open through UI re-renders.
   provider: '', // مزوّد الذكاء الاصطناعي المختار للعناوين
   modal: null,
   history: null,
@@ -70,6 +71,7 @@ const linksHtml = (text) =>
 
 // ───────────── الحفظ التلقائي ─────────────
 const pending = new Map(); // "kind:id:field" → { kind, id, field, value, timer } (kind: entries | bank)
+const saving = new Map(); // Serialize writes to the same field to avoid out-of-order saves.
 let savedTimer;
 
 function showSaved(text) {
@@ -83,22 +85,34 @@ function scheduleSave(id, field, value, kind = 'entries') {
   const key = `${kind}:${id}:${field}`;
   clearTimeout(pending.get(key)?.timer);
   const item = { kind, id, field, value, timer: null };
-  item.timer = setTimeout(() => flushOne(key), 700);
+  item.timer = setTimeout(() => { flushOne(key).catch(() => {}); }, 700);
   pending.set(key, item);
   showSaved('⏳ بيحفظ…');
 }
 
 async function flushOne(key, keepalive = false) {
+  // Wait for an older save of this field before writing the latest value.
+  if (saving.has(key)) await saving.get(key);
   const item = pending.get(key);
   if (!item) return;
   clearTimeout(item.timer);
   pending.delete(key);
-  try {
-    await api(`/${item.kind}/${item.id}`, { method: 'PATCH', body: { [item.field]: item.value }, keepalive });
-    showSaved('اتحفظ ✓');
-  } catch (e) {
-    toast(`ما اتحفظش: ${e.message}`, true);
-  }
+  const operation = api(`/${item.kind}/${item.id}`, {
+    method: 'PATCH',
+    body: { [item.field]: item.value },
+    keepalive,
+  }).then(() => {
+    if (!pending.has(key)) showSaved('اتحفظ ✓');
+  }).catch((error) => {
+    // Never throw away an unsaved edit. Keep the newest value if the user typed more.
+    if (!pending.has(key)) pending.set(key, { ...item, timer: null });
+    toast(`ما اتحفظش: ${error.message} — التعديل لسه موجود. جرّب تاني.`, true);
+    throw error;
+  }).finally(() => {
+    if (saving.get(key) === operation) saving.delete(key);
+  });
+  saving.set(key, operation);
+  return operation;
 }
 const flushAll = (keepalive = false) => Promise.all([...pending.keys()].map((k) => flushOne(k, keepalive)));
 
@@ -139,6 +153,19 @@ const hasScript = (e) => !!(e.script && e.script.trim());
 const hasNotes = (e) => !!(e.notes && e.notes.trim());
 const scriptFlag = (e) => `<span class="flag written" data-sflag="${e.id}"${hasScript(e) ? '' : ' hidden'}>✅ تم كتابة السكريبت</span>`;
 const noteFlag = (e) => `<span class="flag written" data-nflag="${e.id}"${hasNotes(e) && !hasScript(e) ? '' : ' hidden'}>💡 الفكرة جاهزة</span>`;
+
+function notesAccordion(e) {
+  const expanded = state.notesOpen.has(e.id);
+  const count = linksFrom(e.notes).length;
+  return `<details class="script-notes" data-note-id="${e.id}" ${expanded ? 'open' : ''}>
+    <summary><span>📝 ملاحظات وروابط</span><small>${count ? `${count} روابط` : hasNotes(e) ? 'فيه ملاحظات' : 'إضافة ملاحظات'}</small></summary>
+    <div class="script-notes-body">
+      <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="اكتب ملاحظاتك أو روابط المراجع الخاصة بالسكريبت">${esc(e.notes)}</textarea>
+      <ul class="links">${linksHtml(e.notes)}</ul>
+    </div>
+  </details>`;
+}
+
 function proofreadButton(e) {
   const busy = state.busy.has('p' + e.id);
   const ready = state.data?.integrations?.aiProviders?.includes('gemini');
@@ -321,15 +348,11 @@ function taskBody(e) {
   const chosenProvider = state.provider || d.settings.aiProvider;
   return `<div class="t-body">
     <section class="production-section script-editor-section"><div class="section-heading"><div><h4>✍️ نص السكريبت</h4><p>اكتب النص وراجعه هنا — الحفظ تلقائي</p></div><span class="section-mark">كتابة</span>${proofreadButton(e)}</div>
-      <textarea class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="ابدأ كتابة السكريبت هنا… المساحة تتمدد تلقائيًا مع النص">${esc(e.script)}</textarea>
+      <textarea class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="ابدأ كتابة السكريبت هنا… المساحة تتمدد تلقائيًا مع النص" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
+      ${notesAccordion(e)}
     </section>
 
     <div class="production-grid">
-    <section class="box production-panel notes-panel"><h4>📝 ملاحظات وروابط</h4>
-      <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="ملاحظات، مراجع، أو روابط مرتبطة بالفيديو">${esc(e.notes)}</textarea>
-      <ul class="links">${linksHtml(e.notes)}</ul>
-    </section>
-
     <section class="box production-panel titles-panel"><h4>✨ اقتراحات العناوين</h4>
       <div class="row">
         <select data-prov style="width:auto">
@@ -352,6 +375,7 @@ function taskBody(e) {
 
     <section class="box production-panel thumbnail-panel"><div class="panel-title"><h4>🖼️ الصورة المصغرة</h4><span class="section-mark">Google Flow</span></div>
       <p class="hint">البرومبت جاهز حسب عنوان الفيديو وإعدادات القناة.</p>
+      ${d.integrations.thumbnails ? `<button class="btn small" data-act="thumbnail" data-id="${e.id}" type="button" ${state.busy.has('i' + e.id) ? 'disabled' : ''}>${state.busy.has('i' + e.id) ? '⏳ جاري توليد الصورة…' : '✨ ولّد الصورة بـ Gemini'}</button>` : ''}
       <button class="btn flow-button" data-act="flow" data-id="${e.id}" type="button">📋 انسخ البرومبت وافتح Google Flow</button>
       ${e.thumb_url ? `<div class="thumb"><img src="${esc(e.thumb_url)}" alt="الصورة المصغرة" loading="lazy"><div class="row"><a class="btn small ghost" href="${esc(e.thumb_url)}" download>⬇️ تحميل الصورة</a></div></div>` : ''}
     </section>
@@ -410,17 +434,22 @@ function taskOptions() {
   return `<option value="">— اختار القناة —</option>${groups.map(([name, list]) => `<optgroup label="${esc(name)}">${list.map(opt).join('')}</optgroup>`).join('')}`;
 }
 
+
 function scriptCard(e) {
   const ch = e.channel;
   return `<article class="task s-card ${hasScript(e) ? 'ready' : ''}" data-sid="${e.id}">
     <div class="t-head">
       ${scriptFlag(e)}
       ${ch ? `<span class="badge" style="--c:${esc(ch.color)}">${chLabel(ch)}</span>` : ''}
-
       <select data-id="${e.id}" data-field="day" title="انقل المهمة ليوم تاني"><option value="">أي يوم</option>
         ${DAYS.map((n, i) => `<option value="${i}" ${e.day === i ? 'selected' : ''}>${n}</option>`).join('')}</select>
     </div>
-    <div class="t-body"><label class="script-editor-label" for="script-${e.id}">✍️ مساحة كتابة السكريبت <small>الحفظ تلقائي</small></label><textarea id="script-${e.id}" class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="اكتب سكريبت قناة «${esc(ch?.name || 'القناة')}» هنا… المساحة تتمدد تلقائيًا">${esc(e.script)}</textarea><div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span>${proofreadButton(e)}</div></div>
+    <div class="t-body">
+      <label class="script-editor-label" for="script-${e.id}">✍️ مساحة كتابة السكريبت <small>الحفظ تلقائي</small></label>
+      <textarea id="script-${e.id}" class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="اكتب سكريبت قناة «${esc(ch?.name || 'القناة')}» هنا… المساحة تتمدد تلقائيًا" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
+      ${notesAccordion(e)}
+      <div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span>${proofreadButton(e)}</div>
+    </div>
   </article>`;
 }
 
@@ -478,6 +507,15 @@ async function mutate(id, patch) {
   replaceEntry(updated);
   await load();
 }
+
+document.addEventListener('click', (ev) => {
+  const summary = ev.target.closest('details.script-notes > summary');
+  if (!summary) return;
+  const details = summary.parentElement;
+  const id = Number(details.dataset.noteId);
+  if (details.open) state.notesOpen.delete(id);
+  else state.notesOpen.add(id);
+});
 
 document.addEventListener('click', (ev) => {
   const card = ev.target.closest('.task');
@@ -587,8 +625,8 @@ document.addEventListener('click', (ev) => {
       }
       case 'titles':
         return genTitles(id);
-      case 'proofread':
-        return proofread(id);
+      case 'thumbnail':
+        return genThumbnail(id);
       case 'proofread':
         return proofread(id);
       case 'pick-title': {
@@ -665,6 +703,9 @@ function refreshScriptUi(e) {
   document.querySelectorAll(`[data-sflag="${e.id}"]`).forEach((f) => (f.hidden = !on));
   document.querySelectorAll(`[data-nflag="${e.id}"]`).forEach((f) => (f.hidden = on || !hasNotes(e)));
   document.querySelector(`.s-card[data-sid="${e.id}"]`)?.classList.toggle('ready', on);
+  document.querySelectorAll(`.proofread-btn[data-id="${e.id}"]`).forEach((button) => {
+    button.disabled = !on || state.busy.has('p' + e.id) || !state.data.integrations.aiProviders.includes('gemini');
+  });
   document.querySelectorAll('.schip').forEach((c) => {
     const k = c.dataset.d;
     const list = state.data.entries.filter((x) => (k === 'none' ? x.day === null : x.day === Number(k)));
@@ -706,7 +747,8 @@ document.addEventListener('focusout', (ev) => {
   if (el.dataset?.field && el.dataset.id) flushOne(`entries:${el.dataset.id}:${el.dataset.field}`);
   if (el.dataset?.bid) flushOne(`bank:${el.dataset.bid}:${el.dataset.bf}`);
 });
-window.addEventListener('pagehide', () => flushAll(true));
+window.addEventListener('pagehide', () => { flushAll(true).catch(() => {}); });
+window.addEventListener('online', () => { flushAll().catch(() => {}); });
 window.addEventListener('resize', () => autosizeAll());
 window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
@@ -758,9 +800,29 @@ async function genTitles(id) {
   }
 }
 
+async function genThumbnail(id) {
+  if (!state.data.integrations.thumbnails) return toast('توليد الصور محتاج مفتاح Gemini على السيرفر', true);
+  if (state.busy.has('i' + id)) return;
+  state.busy.add('i' + id);
+  render();
+  try {
+    await flushAll();
+    const result = await api('/entries/' + id + '/thumbnail', {
+      method: 'POST',
+      body: { prompt: promptValue(id) },
+    });
+    replaceEntry(result.entry);
+    toast('✅ الصورة جاهزة للمعاينة والتحميل');
+  } finally {
+    state.busy.delete('i' + id);
+    render();
+  }
+}
+
 async function proofread(id) {
   const e = entryById(id);
   if (!hasScript(e)) return toast('اكتب السكريبت الأول قبل التدقيق', true);
+  if (state.busy.has('p' + id)) return;
   if (!state.data.integrations.aiProviders.includes('gemini')) return toast('التدقيق محتاج مفتاح Gemini على السيرفر', true);
   state.busy.add('p' + id);
   render();
@@ -873,7 +935,7 @@ function renderModal() {
   const taskRow = ({ task: t, index: i, order }) => `<article class="template-task-row" data-tk="${i}">
     <span class="template-task-order">${String(order).padStart(2, '0')}</span>
     <div class="template-task-fields">
-      <input type="hidden" data-k="title" value="${esc(t.title)}"><span class="template-task-channel">${esc(m.channels.find((c) => c.id === t.channel_id)?.name || 'من غير قناة')}</span>
+      <label class="template-task-name">اسم المهمة <input type="text" data-k="title" value="${esc(t.title)}" maxlength="300" placeholder="اسم المهمة"></label><span class="template-task-channel">${esc(m.channels.find((c) => c.id === t.channel_id)?.name || 'من غير قناة')}</span>
       <div class="template-task-controls">
         <select data-k="channel" aria-label="القناة">${chOpts(t.channel_id)}</select>
         <select data-k="day" aria-label="نقل إلى يوم">${dayOpts(t.day)}</select>
@@ -985,7 +1047,7 @@ function readModal() {
   m.tasks.forEach((t, i) => {
     const row = $(`[data-tk="${i}"]`, root);
     t.channel_id = $('[data-k=channel]', row).value === '' ? null : Number($('[data-k=channel]', row).value);
-    t.title = m.channels.find((c) => c.id === t.channel_id)?.name || '';
+    t.title = $('[data-k=title]', row).value;
     t.day = $('[data-k=day]', row).value === '' ? null : Number($('[data-k=day]', row).value);
     t.is_video = $('[data-k=video]', row).checked;
   });
