@@ -643,3 +643,57 @@ body.settings-open { overflow:hidden; }
 .main-nav a.active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, var(--card)), color-mix(in srgb, var(--accent) 8%, var(--bg))); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 -2px 0 var(--accent); }
 .celebration-card { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: linear-gradient(145deg, var(--card-2), var(--canvas)); box-shadow: 0 24px 90px rgba(0, 0, 0, 0.42), 0 0 48px color-mix(in srgb, var(--accent) 18%, transparent); }
 .top { border-bottom-color: var(--line); }
+
+
+/* Collapsible, per-script notes in both the daily/week view and the scripts workspace. */
+.script-notes {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--inset);
+  overflow: clip;
+}
+.script-notes summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 11px 13px;
+  user-select: none;
+}
+.script-notes summary::-webkit-details-marker { display: none; }
+.script-notes summary small { margin-inline-start: auto; font-size: .76rem; color: var(--muted); font-weight: 400; }
+.script-notes summary::after { content: '⌄'; font-size: 1.2rem; line-height: 1; transition: transform .2s ease; }
+.script-notes[open] summary::after { transform: rotate(180deg); }
+.script-notes summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 10px; }
+.script-notes-body { padding: 0 13px 13px; }
+.script-notes-body textarea.auto { width: 100%; min-height: 96px; }
+.script-notes .links:empty { display: none; }
+.script-notes .links { margin-top: 8px; }
+.script-notes[open] .script-notes-body { animation: script-notes-slide .2s ease both; }
+@keyframes script-notes-slide { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@supports (interpolate-size: allow-keywords) {
+  .script-notes { interpolate-size: allow-keywords; }
+  .script-notes::details-content {
+    block-size: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: block-size .23s ease, opacity .2s ease, content-visibility .23s allow-discrete;
+  }
+  .script-notes[open]::details-content { block-size: auto; opacity: 1; }
+}
+.production-grid { grid-template-columns: minmax(0, 1.25fr) minmax(230px, .9fr); grid-template-areas: "titles thumbnail"; }
+.template-task-name { display: grid; gap: 4px; color: var(--muted); font-size: .76rem; }
+.template-task-name input { width: 100%; min-width: 0; font-size: .91rem; color: var(--text); }
+@media (max-width: 680px) {
+  .production-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "titles" "thumbnail"; }
+  .script-notes summary { padding: 11px; }
+  .script-notes-body { padding: 0 11px 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .script-notes[open] .script-notes-body { animation: none; }
+  .script-notes summary::after, .script-notes::details-content { transition: none; }
+}
