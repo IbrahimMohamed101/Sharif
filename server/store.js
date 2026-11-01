@@ -624,7 +624,14 @@ export function monthlyCommitment(db, from, to) {
   const rows = db
     .prepare(
       `SELECT channel_id, COUNT(*) AS planned, SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) AS done
-       FROM entries WHERE is_video = 1 AND week_start >= ? AND week_start < ?
+       FROM entries
+       WHERE is_video = 1
+         AND (CASE WHEN day IS NULL THEN week_start
+                   ELSE date(week_start, '+' || ((day - CAST(strftime('%w', week_start) AS INTEGER) + 7) % 7) || ' days')
+              END) >= ?
+         AND (CASE WHEN day IS NULL THEN week_start
+                   ELSE date(week_start, '+' || ((day - CAST(strftime('%w', week_start) AS INTEGER) + 7) % 7) || ' days')
+              END) < ?
        GROUP BY channel_id`,
     )
     .all(from, to);
