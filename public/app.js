@@ -9,6 +9,7 @@ const state = {
   sDay: null, // اليوم المختار في صفحة السكريبتات
   bank: [], // مخزن السكريبتات
   busy: new Set(),
+  notesOpen: new Set(), // Keep each script's accordion open through UI re-renders.
   provider: '', // مزوّد الذكاء الاصطناعي المختار للعناوين
   modal: null,
   history: null,
@@ -139,6 +140,19 @@ const hasScript = (e) => !!(e.script && e.script.trim());
 const hasNotes = (e) => !!(e.notes && e.notes.trim());
 const scriptFlag = (e) => `<span class="flag written" data-sflag="${e.id}"${hasScript(e) ? '' : ' hidden'}>✅ تم كتابة السكريبت</span>`;
 const noteFlag = (e) => `<span class="flag written" data-nflag="${e.id}"${hasNotes(e) && !hasScript(e) ? '' : ' hidden'}>💡 الفكرة جاهزة</span>`;
+
+function notesAccordion(e) {
+  const expanded = state.notesOpen.has(e.id);
+  const count = linksFrom(e.notes).length;
+  return `<details class="script-notes" data-note-id="${e.id}" ${expanded ? 'open' : ''}>
+    <summary><span>📝 ملاحظات وروابط</span><small>${count ? `${count} روابط` : hasNotes(e) ? 'فيه ملاحظات' : 'إضافة ملاحظات'}</small></summary>
+    <div class="script-notes-body">
+      <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="اكتب ملاحظاتك أو روابط المراجع الخاصة بالسكريبت">${esc(e.notes)}</textarea>
+      <ul class="links">${linksHtml(e.notes)}</ul>
+    </div>
+  </details>`;
+}
+
 function proofreadButton(e) {
   const busy = state.busy.has('p' + e.id);
   const ready = state.data?.integrations?.aiProviders?.includes('gemini');
@@ -321,15 +335,11 @@ function taskBody(e) {
   const chosenProvider = state.provider || d.settings.aiProvider;
   return `<div class="t-body">
     <section class="production-section script-editor-section"><div class="section-heading"><div><h4>✍️ نص السكريبت</h4><p>اكتب النص وراجعه هنا — الحفظ تلقائي</p></div><span class="section-mark">كتابة</span>${proofreadButton(e)}</div>
-      <textarea class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="ابدأ كتابة السكريبت هنا… المساحة تتمدد تلقائيًا مع النص">${esc(e.script)}</textarea>
+      <textarea class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="ابدأ كتابة السكريبت هنا… المساحة تتمدد تلقائيًا مع النص" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
+      ${notesAccordion(e)}
     </section>
 
     <div class="production-grid">
-    <section class="box production-panel notes-panel"><h4>📝 ملاحظات وروابط</h4>
-      <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="ملاحظات، مراجع، أو روابط مرتبطة بالفيديو">${esc(e.notes)}</textarea>
-      <ul class="links">${linksHtml(e.notes)}</ul>
-    </section>
-
     <section class="box production-panel titles-panel"><h4>✨ اقتراحات العناوين</h4>
       <div class="row">
         <select data-prov style="width:auto">
@@ -410,17 +420,22 @@ function taskOptions() {
   return `<option value="">— اختار القناة —</option>${groups.map(([name, list]) => `<optgroup label="${esc(name)}">${list.map(opt).join('')}</optgroup>`).join('')}`;
 }
 
+
 function scriptCard(e) {
   const ch = e.channel;
   return `<article class="task s-card ${hasScript(e) ? 'ready' : ''}" data-sid="${e.id}">
     <div class="t-head">
       ${scriptFlag(e)}
       ${ch ? `<span class="badge" style="--c:${esc(ch.color)}">${chLabel(ch)}</span>` : ''}
-
       <select data-id="${e.id}" data-field="day" title="انقل المهمة ليوم تاني"><option value="">أي يوم</option>
         ${DAYS.map((n, i) => `<option value="${i}" ${e.day === i ? 'selected' : ''}>${n}</option>`).join('')}</select>
     </div>
-    <div class="t-body"><label class="script-editor-label" for="script-${e.id}">✍️ مساحة كتابة السكريبت <small>الحفظ تلقائي</small></label><textarea id="script-${e.id}" class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="اكتب سكريبت قناة «${esc(ch?.name || 'القناة')}» هنا… المساحة تتمدد تلقائيًا">${esc(e.script)}</textarea><div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span>${proofreadButton(e)}</div></div>
+    <div class="t-body">
+      <label class="script-editor-label" for="script-${e.id}">✍️ مساحة كتابة السكريبت <small>الحفظ تلقائي</small></label>
+      <textarea id="script-${e.id}" class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="اكتب سكريبت قناة «${esc(ch?.name || 'القناة')}» هنا… المساحة تتمدد تلقائيًا" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
+      ${notesAccordion(e)}
+      <div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span>${proofreadButton(e)}</div>
+    </div>
   </article>`;
 }
 
@@ -478,6 +493,15 @@ async function mutate(id, patch) {
   replaceEntry(updated);
   await load();
 }
+
+document.addEventListener('click', (ev) => {
+  const summary = ev.target.closest('details.script-notes > summary');
+  if (!summary) return;
+  const details = summary.parentElement;
+  const id = Number(details.dataset.noteId);
+  if (details.open) state.notesOpen.delete(id);
+  else state.notesOpen.add(id);
+});
 
 document.addEventListener('click', (ev) => {
   const card = ev.target.closest('.task');
@@ -589,8 +613,6 @@ document.addEventListener('click', (ev) => {
         return genTitles(id);
       case 'proofread':
         return proofread(id);
-      case 'proofread':
-        return proofread(id);
       case 'pick-title': {
         const e = entryById(id);
         const t = e.titles[Number(el.dataset.i)];
@@ -665,6 +687,9 @@ function refreshScriptUi(e) {
   document.querySelectorAll(`[data-sflag="${e.id}"]`).forEach((f) => (f.hidden = !on));
   document.querySelectorAll(`[data-nflag="${e.id}"]`).forEach((f) => (f.hidden = on || !hasNotes(e)));
   document.querySelector(`.s-card[data-sid="${e.id}"]`)?.classList.toggle('ready', on);
+  document.querySelectorAll(`.proofread-btn[data-id="${e.id}"]`).forEach((button) => {
+    button.disabled = !on || state.busy.has('p' + e.id) || !state.data.integrations.aiProviders.includes('gemini');
+  });
   document.querySelectorAll('.schip').forEach((c) => {
     const k = c.dataset.d;
     const list = state.data.entries.filter((x) => (k === 'none' ? x.day === null : x.day === Number(k)));
