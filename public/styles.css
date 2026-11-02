@@ -645,6 +645,24 @@ body.settings-open { overflow:hidden; }
 .top { border-bottom-color: var(--line); }
 
 
+/* Notes quick action is outside <details>: clicking it never toggles parent/notes. */
+.script-notes-shell { position:relative; min-width:0; }
+.note-shortcuts { position:absolute; inset-block-start:6px; inset-inline-end:37px; display:flex; align-items:center; z-index:2; }
+.note-shortcuts:empty { display:none; }
+.note-quick-link { display:inline-flex; justify-content:center; align-items:center; padding:6px 9px; font-size:.77rem; line-height:1.1; white-space:nowrap; }
+.script-notes-shell.has-links .script-notes summary { padding-inline-end:130px; }
+.script-notes-shell.has-links .script-notes summary small { display:none; }
+.script-heading-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:7px; }
+.script-heading-actions .btn { white-space:nowrap; }
+.script-card-foot .script-heading-actions { margin-inline-start:auto; }
+@media(max-width:640px) {
+  .section-heading { flex-wrap:wrap; }
+  .script-heading-actions { width:100%; justify-content:flex-start; }
+  .script-card-foot .script-heading-actions { margin-inline-start:0; }
+  .script-notes-shell.has-links .script-notes summary { padding-inline-end:120px; }
+  .note-quick-link { padding:6px 7px; font-size:.72rem; }
+}
+
 /* Collapsible, per-script notes in both the daily/week view and the scripts workspace. */
 .script-notes {
   min-width: 0;
