@@ -154,16 +154,35 @@ const hasNotes = (e) => !!(e.notes && e.notes.trim());
 const scriptFlag = (e) => `<span class="flag written" data-sflag="${e.id}"${hasScript(e) ? '' : ' hidden'}>✅ تم كتابة السكريبت</span>`;
 const noteFlag = (e) => `<span class="flag written" data-nflag="${e.id}"${hasNotes(e) && !hasScript(e) ? '' : ' hidden'}>💡 الفكرة جاهزة</span>`;
 
+function notesMeta(text) {
+  const n = linksFrom(text).length;
+  return n ? `${n} روابط` : text?.trim() ? 'فيه ملاحظات' : 'إضافة ملاحظات';
+}
+
+function quickNoteLink(text) {
+  const urls = [...new Set(linksFrom(text))];
+  if (!urls.length) return '';
+  const label = urls.length > 1 ? 'فتح أول رابط' : 'فتح الرابط';
+  return `<a class="btn small ghost note-quick-link" href="${esc(urls[0])}" target="_blank" rel="noopener noreferrer" title="${esc(urls[0])}">${label} ↗</a>`;
+}
+
 function notesAccordion(e) {
   const expanded = state.notesOpen.has(e.id);
-  const count = linksFrom(e.notes).length;
-  return `<details class="script-notes" data-note-id="${e.id}" ${expanded ? 'open' : ''}>
-    <summary><span>📝 ملاحظات وروابط</span><small>${count ? `${count} روابط` : hasNotes(e) ? 'فيه ملاحظات' : 'إضافة ملاحظات'}</small></summary>
-    <div class="script-notes-body">
-      <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="اكتب ملاحظاتك أو روابط المراجع الخاصة بالسكريبت">${esc(e.notes)}</textarea>
-      <ul class="links">${linksHtml(e.notes)}</ul>
-    </div>
-  </details>`;
+  const hasLinks = linksFrom(e.notes).length > 0;
+  return `<div class="script-notes-shell${hasLinks ? ' has-links' : ''}">
+    <details class="script-notes" data-note-id="${e.id}" ${expanded ? 'open' : ''}>
+      <summary><span>📝 ملاحظات وروابط</span><small data-note-meta="${e.id}">${notesMeta(e.notes)}</small></summary>
+      <div class="script-notes-body">
+        <textarea class="auto" data-id="${e.id}" data-field="notes" placeholder="اكتب ملاحظاتك أو روابط المراجع الخاصة بالسكريبت">${esc(e.notes)}</textarea>
+        <ul class="links">${linksHtml(e.notes)}</ul>
+      </div>
+    </details>
+    <span class="note-shortcuts" data-note-shortcuts="${e.id}">${quickNoteLink(e.notes)}</span>
+  </div>`;
+}
+
+function copyScriptButton(e) {
+  return `<button class="btn small ghost copy-script-btn" data-act="copy-script" data-id="${e.id}" type="button" ${hasScript(e) ? '' : 'disabled'} title="نسخ النص كاملًا">📋 نسخ السكريبت</button>`;
 }
 
 function proofreadButton(e) {
@@ -347,7 +366,7 @@ function taskBody(e) {
   const busyT = state.busy.has(`t${e.id}`);
   const chosenProvider = state.provider || d.settings.aiProvider;
   return `<div class="t-body">
-    <section class="production-section script-editor-section"><div class="section-heading"><div><h4>✍️ نص السكريبت</h4><p>اكتب النص وراجعه هنا — الحفظ تلقائي</p></div><span class="section-mark">كتابة</span>${proofreadButton(e)}</div>
+    <section class="production-section script-editor-section"><div class="section-heading"><div><h4>✍️ نص السكريبت</h4><p>اكتب النص وراجعه هنا — الحفظ تلقائي</p></div><div class="script-heading-actions"><span class="section-mark">كتابة</span>${copyScriptButton(e)}${proofreadButton(e)}</div></div>
       <textarea class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="ابدأ كتابة السكريبت هنا… المساحة تتمدد تلقائيًا مع النص" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
       ${notesAccordion(e)}
     </section>
@@ -357,14 +376,14 @@ function taskBody(e) {
       <div class="row">
         <select data-prov style="width:auto">
           <option value="auto" ${chosenProvider === 'auto' ? 'selected' : ''}>تلقائي</option>
-          ${['anthropic', 'gemini', 'openai', 'openrouter']
-            .filter((p) => providers.includes(p))
-            .map((p) => `<option value="${p}" ${chosenProvider === p ? 'selected' : ''}>${{ anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter' }[p]}</option>`)
+          ${['anthropic', 'gemini', 'openai', 'openrouter', 'deepseek']
+            .filter((p) => providers.includes(p) || p === 'deepseek')
+            .map((p) => `<option value="${p}" ${chosenProvider === p ? 'selected' : ''} ${providers.includes(p) ? '' : 'disabled'}>${{ anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter', deepseek: 'DeepSeek' }[p]}${providers.includes(p) ? '' : ' (المفتاح غير مضاف)'}</option>`)
             .join('')}
         </select>
         <button class="btn small" data-act="titles" data-id="${e.id}" type="button" ${busyT ? 'disabled' : ''}>${busyT ? '⏳ بيكتب…' : e.titles.length ? '🔄 ولّد تاني' : '✨ ولّد العناوين'}</button>
       </div>
-      ${providers.length ? '' : '<p class="hint">محتاج مفتاح ذكاء اصطناعي في ملف .env (ANTHROPIC_API_KEY أو GEMINI_API_KEY أو OPENAI_API_KEY أو OPENROUTER_API_KEY).</p>'}
+      ${providers.length ? '' : '<p class="hint">محتاج مفتاح ذكاء اصطناعي في ملف .env (ANTHROPIC_API_KEY أو GEMINI_API_KEY أو OPENAI_API_KEY أو OPENROUTER_API_KEY أو DEEPSEEK_API_KEY).</p>'}
       <div class="titles">${e.titles
         .map(
           (t, i) => `<div class="row"><button class="title-opt grow ${t === e.chosen_title ? 'picked' : ''}" data-act="pick-title" data-id="${e.id}" data-i="${i}" type="button">${t === e.chosen_title ? '✅ ' : ''}${esc(t)}</button>
@@ -448,7 +467,7 @@ function scriptCard(e) {
       <label class="script-editor-label" for="script-${e.id}">✍️ مساحة كتابة السكريبت <small>الحفظ تلقائي</small></label>
       <textarea id="script-${e.id}" class="auto script-editor" data-id="${e.id}" data-field="script" placeholder="اكتب سكريبت قناة «${esc(ch?.name || 'القناة')}» هنا… المساحة تتمدد تلقائيًا" ${state.busy.has('p' + e.id) ? 'readonly' : ''}>${esc(e.script)}</textarea>
       ${notesAccordion(e)}
-      <div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span>${proofreadButton(e)}</div>
+      <div class="script-card-foot"><span>${hasScript(e) ? '✅ السكريبت محفوظ' : 'ابدأ الكتابة — سيظهر اكتمال السكريبت تلقائيًا'}</span><span>${esc(ch?.name || 'بدون قناة')}</span><div class="script-heading-actions">${copyScriptButton(e)}${proofreadButton(e)}</div></div>
     </div>
   </article>`;
 }
@@ -518,8 +537,11 @@ document.addEventListener('click', (ev) => {
 });
 
 document.addEventListener('click', (ev) => {
-  const card = ev.target.closest('.task');
-  if (!card || ev.target.closest('button, a, input, textarea, select, label, [contenteditable="true"], [data-act]')) return;
+  // Only the task header toggles its card. Clicking nested notes/details,
+  // selections, or content must never collapse the parent task.
+  const header = ev.target.closest('.t-head');
+  const card = header?.closest('.task');
+  if (!card || ev.target.closest('button, a, input, textarea, select, label, summary, details, [contenteditable="true"], [data-act]')) return;
   card.querySelector('[data-act="toggle"]')?.click();
 });
 
@@ -637,6 +659,12 @@ document.addEventListener('click', (ev) => {
       case 'copy-title':
         await copyText(entryById(id).titles[Number(el.dataset.i)]);
         return toast('📋 العنوان اتنسخ');
+      case 'copy-script': {
+        const script = entryById(id)?.script || '';
+        if (!script.trim()) return toast('اكتب السكريبت الأول', true);
+        await copyText(script);
+        return toast('📋 السكريبت اتنسخ بالكامل');
+      }
       case 'flow': {
         const flowTab = window.open(state.data.integrations.flowUrl, '_blank');
         if (flowTab) flowTab.opener = null;
@@ -706,6 +734,9 @@ function refreshScriptUi(e) {
   document.querySelectorAll(`.proofread-btn[data-id="${e.id}"]`).forEach((button) => {
     button.disabled = !on || state.busy.has('p' + e.id) || !state.data.integrations.aiProviders.includes('gemini');
   });
+  document.querySelectorAll(`.copy-script-btn[data-id="${e.id}"]`).forEach((button) => {
+    button.disabled = !on;
+  });
   document.querySelectorAll('.schip').forEach((c) => {
     const k = c.dataset.d;
     const list = state.data.entries.filter((x) => (k === 'none' ? x.day === null : x.day === Number(k)));
@@ -736,8 +767,14 @@ document.addEventListener('input', (ev) => {
   if (field === 'script') refreshScriptUi(e);
   if (field === 'notes') {
     document.querySelectorAll(`[data-nflag="${e.id}"]`).forEach((f) => (f.hidden = hasScript(e) || !hasNotes(e)));
-    const ul = el.parentElement.querySelector('.links');
+    const shell = el.closest('.script-notes-shell');
+    const ul = shell?.querySelector('.links');
     if (ul) ul.innerHTML = linksHtml(el.value);
+    const quick = shell?.querySelector('[data-note-shortcuts]');
+    if (quick) quick.innerHTML = quickNoteLink(el.value);
+    shell?.classList.toggle('has-links', linksFrom(el.value).length > 0);
+    const meta = shell?.querySelector('[data-note-meta]');
+    if (meta) meta.textContent = notesMeta(el.value);
   }
   scheduleSave(id, field, el.value);
 });
@@ -955,7 +992,7 @@ function renderModal() {
   };
   $('#modalRoot').innerHTML = `<div class="modal-back settings-page"><div class="modal settings-sheet" role="dialog" aria-modal="true" aria-label="الإعدادات">
     <div class="settings-intro"><span class="eyebrow">تخصيص مساحة العمل</span><h2>إعدادات منصة الإنتاج والقنوات</h2><p class="hint">ضبط أهداف الأسبوع، أسلوب القنوات، وأدوات إنتاج المحتوى.</p></div>
-    <div class="settings-kpis"><article><span>الهدف الأسبوعي</span><strong>${s.weeklyTarget} فيديو</strong></article><article><span>أيام العمل</span><strong>${s.workDays.length} أيام</strong></article><article><span>القنوات النشطة</span><strong>${m.channels.length} قنوات</strong></article><article><span>محرّك الذكاء الاصطناعي</span><strong>${{ auto: 'تلقائي', anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter' }[s.aiProvider] || 'تلقائي'}</strong></article></div>
+    <div class="settings-kpis"><article><span>الهدف الأسبوعي</span><strong>${s.weeklyTarget} فيديو</strong></article><article><span>أيام العمل</span><strong>${s.workDays.length} أيام</strong></article><article><span>القنوات النشطة</span><strong>${m.channels.length} قنوات</strong></article><article><span>محرّك الذكاء الاصطناعي</span><strong>${{ auto: 'تلقائي', anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter', deepseek: 'DeepSeek' }[s.aiProvider] || 'تلقائي'}</strong></article></div>
 
     <section><h3>🎯 هدف الأسبوع والجدول الزمني</h3>
       <div class="row">
@@ -1002,12 +1039,12 @@ function renderModal() {
     <section><h3>🤖 الذكاء الاصطناعي والمنصات</h3>
       <div class="row">
         <div><label class="lbl">مزوّد العناوين</label><select id="s_ai" style="width:auto">
-          ${['auto', 'anthropic', 'gemini', 'openai', 'openrouter'].map((p) => { const available = p === 'auto' || state.data.integrations.aiProviders.includes(p); const names = { auto: 'تلقائي', anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter' }; return `<option value="${p}" ${s.aiProvider === p ? 'selected' : ''} ${available ? '' : 'disabled'}>${names[p]}${available ? '' : ' (المفتاح غير مضاف)'}</option>`; }).join('')}</select></div>
+          ${['auto', 'anthropic', 'gemini', 'openai', 'openrouter', 'deepseek'].map((p) => { const available = p === 'auto' || state.data.integrations.aiProviders.includes(p); const names = { auto: 'تلقائي', anthropic: 'Claude', gemini: 'Gemini', openai: 'OpenAI', openrouter: 'OpenRouter', deepseek: 'DeepSeek' }; return `<option value="${p}" ${s.aiProvider === p ? 'selected' : ''} ${available ? '' : 'disabled'}>${names[p]}${available ? '' : ' (المفتاح غير مضاف)'}</option>`; }).join('')}</select></div>
         <div><label class="lbl">أبعاد الصورة المصغرة</label><select id="s_aspect" style="width:auto">
           ${['16:9', '9:16', '1:1', '4:3'].map((a) => `<option ${s.thumbAspect === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
         <div class="grow"><label class="lbl">المنصات (مفصولة بفاصلة)</label><input type="text" id="s_platforms" value="${esc(s.platforms.join('، '))}"></div>
       </div>
-      <p class="hint">مفاتيح الـ API بتتحط في ملف .env على السيرفر — مش من هنا.</p>
+      <p class="hint">مفاتيح الـ API بتتحط في إعدادات Environment على السيرفر. DeepSeek محتاج DEEPSEEK_API_KEY، وهيظهر متاح تلقائيًا بعد إضافته.</p>
     </section>
 
     <section class="danger-zone"><h3>🔒 تصفير الأسبوع الحالي</h3>
