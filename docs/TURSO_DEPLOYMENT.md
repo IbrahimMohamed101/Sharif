@@ -16,7 +16,12 @@ Sharif still uses synchronous `node:sqlite`. Instead of rewriting every API endp
    - `TURSO_DATABASE_URL=libsql://sharif-prod-hemaatar.aws-ap-northeast-1.turso.io`
    - `TURSO_AUTH_TOKEN=<private database token>`
 4. Before merging, use an isolated staging service or a private test to confirm the token can perform Turso SELECT/INSERT and the remote snapshot can be restored.
-5. **Migrate** the fresh production backup into the Turso snapshot before switching production. If the remote table is empty on first startup, the application seeds the default template: it cannot magically recover the old instance's data.
+5. **Migrate before switching production.** The importer expects `SHARIF_LEGACY_BOOTSTRAP_B64`: the base64-encoded, gzipped JSON from `sharif-live-snapshot.json`. Do NOT put this value in public GitHub code. A fresh backup must be taken immediately before cutover, and the database must be verified against that backup. On first startup with an empty Turso snapshot, the backend imports the backup **before demo seeding**, then commits it to Turso.
+   - To generate the value locally from the extracted JSON backup:
+     `node -e "const fs=require('node:fs'),z=require('node:zlib');process.stdout.write(z.gzipSync(fs.readFileSync('sharif-live-snapshot.json')).toString('base64'))"`
+   - Store that value privately in Render under `SHARIF_LEGACY_BOOTSTRAP_B64`, alongside the two Turso variables. Never put it in the repo.
+   - Without a backup, empty Turso refuses startup unless `TURSO_ALLOW_FRESH_START=true` is deliberately set. Do not enable fresh start for this existing project.
+   - A backup imported into Turso may be incomplete (notably push subscriptions, older reset logs and earlier history than its coverage); see its `limitations` field. Treat it as a recovery snapshot, not a perfect raw SQLite migration.
 6. Only after verification, merge the PR and let Render's auto-deploy handle the build. Do not trigger another manual deploy.
 
 ## Fail-safe behavior
