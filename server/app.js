@@ -10,6 +10,7 @@ import { configuredProviders, generateImage, generateTitles, pickProvider, proof
 import { createPush } from './push.js';
 import { runReminderCheck } from './scheduler.js';
 import * as store from './store.js';
+import { tursoResponseBarrier } from './turso-snapshots.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -23,7 +24,7 @@ function safeEqual(a, b) {
  * بيبني تطبيق Express. كل التبعيات (قاعدة البيانات، البيئة، الوقت، fetch، مُرسل الإشعارات)
  * بتتمرّر من بره عشان نقدر نختبره من غير ما نكلّم أي خدمة حقيقية.
  */
-export function createApp({ db, env = process.env, dataDir, now = () => new Date(), fetchImpl = fetch, pushSender } = {}) {
+export function createApp({ db, env = process.env, dataDir, now = () => new Date(), fetchImpl = fetch, pushSender, snapshots } = {}) {
   const thumbDir = path.join(dataDir, 'thumbnails');
   fs.mkdirSync(thumbDir, { recursive: true });
   const push = createPush({ db, env, dataDir, sender: pushSender });
@@ -268,7 +269,7 @@ export function createApp({ db, env = process.env, dataDir, now = () => new Date
   });
 
   api.use((req, res) => res.status(404).json({ error: 'المسار مش موجود' }));
-  app.use('/api', api);
+  app.use('/api', tursoResponseBarrier(snapshots, db), api);
 
   // ─ ملفات ثابتة
   app.use('/thumbs', express.static(thumbDir, { maxAge: '7d', immutable: true, index: false }));
