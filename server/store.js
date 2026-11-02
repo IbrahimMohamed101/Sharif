@@ -209,7 +209,7 @@ export function validateSettingsPatch(patch) {
     out.timezone = patch.timezone;
   }
   if ('aiProvider' in patch) {
-    if (!['auto', 'anthropic', 'gemini', 'openai', 'openrouter'].includes(patch.aiProvider)) throw bad('مزوّد الذكاء الاصطناعي مش مدعوم');
+    if (!['auto', 'anthropic', 'gemini', 'openai', 'openrouter', 'deepseek'].includes(patch.aiProvider)) throw bad('مزوّد الذكاء الاصطناعي مش مدعوم');
     out.aiProvider = patch.aiProvider;
   }
   if ('thumbAspect' in patch) {
