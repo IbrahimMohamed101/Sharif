@@ -90,9 +90,25 @@ let verifyDb;
 try {
   db = openDb(path.join(dir, 'app.db'));
   const summary = importLegacySnapshot(db, dir, zlib.gzipSync(Buffer.from(JSON.stringify(legacy))).toString('base64'));
+  // First read and independently validate the previous migrated snapshot.
+  // Only refresh our own initial revision. Never overwrite a production snapshot
+  // already modified by the live Turso-backed application.
+  const previousDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sharif-turso-previous-'));
+  let previous;
+  try {
+    previous = new TursoSnapshots({ url: URL, token, dataDir: previousDir });
+    const oldState = await previous.init();
+    if (!oldState.restored || oldState.version !== 1) {
+      throw new Error('Remote Turso revision is not the expected initial migration; refusing overwrite');
+    }
+  } finally {
+    fs.rmSync(previousDir, { recursive: true, force: true });
+  }
+  // The writer's version acts as a compare-and-swap guard. If another writer
+  // updated Turso since our read, this operation refuses to overwrite it.
   const remote = new TursoSnapshots({ url: URL, token, dataDir: dir });
-  const existing = await remote.init();
-  if (existing.restored) throw new Error('Remote Turso already has a snapshot: refusing to overwrite it');
+  remote.initialized = true;
+  remote.version = 1;
   await remote.persistIfChanged(db);
   const verify = new TursoSnapshots({ url: URL, token, dataDir: restored });
   const result = await verify.init();
