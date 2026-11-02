@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openDb } from '../server/store.js';
 import { createApp } from '../server/app.js';
+import webpush from 'web-push';
 import { TursoSnapshots } from '../server/turso-snapshots.js';
 
 const URL = 'libsql://sharif-prod-hemaatar.aws-ap-northeast-1.turso.io';
@@ -71,7 +72,7 @@ test('Turso snapshot: durable SQLite content and image/VAPID survive fresh files
     const fileName = '4-123.png';
     fs.mkdirSync(path.join(a, 'thumbnails'), { recursive: true });
     fs.writeFileSync(path.join(a, 'thumbnails', fileName), Buffer.from('mock image', 'utf8'));
-    fs.writeFileSync(path.join(a, 'vapid.json'), '{"publicKey":"abc","privateKey":"xyz"}');
+    fs.writeFileSync(path.join(a, 'vapid.json'), JSON.stringify(webpush.generateVAPIDKeys()));
     const entry = db.prepare('INSERT INTO entries(week_start,title,script,notes,thumb_file) VALUES(?,?,?,?,?)')
       .run('2026-11-01', 'My video', 'سكريبت أصلي', 'مرجع https://example.com', fileName);
     await first.persistIfChanged(db);
