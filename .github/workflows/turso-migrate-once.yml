@@ -1,0 +1,35 @@
+name: One-time Sharif to Turso migration (no Render deploy)
+on:
+  push:
+    branches:
+      - ops/turso-migration-2026-11-02
+    paths:
+      - .github/workflows/turso-migrate-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Verify Turso token and migrate current live data
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+          cache: npm
+      - run: npm ci
+      - name: Require private write token
+        shell: bash
+        run: |
+          if [ -z "$TURSO_AUTH_TOKEN" ]; then
+            echo "::error::TURSO_AUTH_TOKEN GitHub secret is missing or empty"
+            exit 1
+          fi
+          echo "Turso token is present (value is not logged)"
+      - name: Import a verified, fresh live snapshot into Turso
+        run: node tools/migrate-live-to-turso.mjs
