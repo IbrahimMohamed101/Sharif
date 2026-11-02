@@ -8,6 +8,7 @@ export function configuredProviders(env) {
   if (env.GEMINI_API_KEY) out.push('gemini');
   if (env.OPENAI_API_KEY) out.push('openai');
   if (env.OPENROUTER_API_KEY) out.push('openrouter');
+  if (env.DEEPSEEK_API_KEY) out.push('deepseek');
   return out;
 }
 
@@ -21,7 +22,7 @@ export function pickProvider(env, requested) {
   }
   if (env.AI_PROVIDER && avail.includes(env.AI_PROVIDER)) return env.AI_PROVIDER;
   if (!avail.length) {
-    throw bad('مفيش مفتاح ذكاء اصطناعي متضاف. ضيف ANTHROPIC_API_KEY أو GEMINI_API_KEY أو OPENAI_API_KEY أو OPENROUTER_API_KEY في ملف .env وأعد تشغيل السيرفر.');
+    throw bad('مفيش مفتاح ذكاء اصطناعي متضاف. ضيف ANTHROPIC_API_KEY أو GEMINI_API_KEY أو OPENAI_API_KEY أو OPENROUTER_API_KEY أو DEEPSEEK_API_KEY في ملف .env وأعد تشغيل السيرفر.');
   }
   return avail[0];
 }
@@ -99,6 +100,23 @@ export async function callText({ env, provider, prompt, fetchImpl = fetch }) {
         }),
       },
       'OpenRouter',
+    );
+    return json?.choices?.[0]?.message?.content ?? '';
+  }
+  if (provider === 'deepseek') {
+    const json = await httpJson(
+      fetchImpl,
+      'https://api.deepseek.com/chat/completions',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+        body: JSON.stringify({
+          model: env.DEEPSEEK_MODEL || 'deepseek-flash',
+          thinking: { type: 'disabled' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      },
+      'DeepSeek',
     );
     return json?.choices?.[0]?.message?.content ?? '';
   }
