@@ -5,6 +5,7 @@ import { startScheduler } from './scheduler.js';
 import { openDb } from './store.js';
 import { seedDefaultWeek } from './seed.js';
 import { TursoSnapshots } from './turso-snapshots.js';
+import { importLegacySnapshot } from './legacy-import.js';
 
 // تحميل ملف .env لو موجود (من غير مكتبات خارجية)
 try {
@@ -28,11 +29,22 @@ const snapshots = useTurso ? new TursoSnapshots({
   token: process.env.TURSO_AUTH_TOKEN,
   dataDir,
 }) : null;
+let tursoRestored = false;
 if (snapshots) {
   const status = await snapshots.init();
-  console.log('[turso] Remote storage connected (' + (status.restored ? 'restored revision ' + status.version : 'initial snapshot pending') + ')');
+  tursoRestored = status.restored;
+  // Do not silently create a new default week when a live user database exists.
+  if (!tursoRestored && !process.env.SHARIF_LEGACY_BOOTSTRAP_B64 &&
+      process.env.TURSO_ALLOW_FRESH_START !== 'true') {
+    throw new Error('Turso database is empty; set SHARIF_LEGACY_BOOTSTRAP_B64 to migrate the existing data before launch.');
+  }
+  console.log('[turso] Remote storage connected (' + (status.restored ? 'restored revision ' + status.version : 'initial import pending') + ')');
 }
 const db = openDb(path.join(dataDir, 'app.db'));
+if (snapshots && !tursoRestored && process.env.SHARIF_LEGACY_BOOTSTRAP_B64) {
+  const imported = importLegacySnapshot(db, dataDir, process.env.SHARIF_LEGACY_BOOTSTRAP_B64);
+  console.log('[turso] Imported legacy data safely: ' + JSON.stringify(imported));
+}
 if (process.env.SEED_DEMO !== 'false' && seedDefaultWeek(db)) {
   console.log('ℹ️  اتحمّل جدول الموقع القديم: 4 قنوات × 24 مهمة (الجمعة → الأربعاء). عدّله من الإعدادات.');
 }
