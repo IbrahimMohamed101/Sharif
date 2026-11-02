@@ -1,4 +1,5 @@
 import { createApiClient } from './api-client.js';
+import { composeThumbnailCopy } from './thumbnail-copy.js';
 
 'use strict';
 
@@ -393,9 +394,9 @@ function taskBody(e) {
     </section>
 
     <section class="box production-panel thumbnail-panel"><div class="panel-title"><h4>🖼️ الصورة المصغرة</h4><span class="section-mark">Google Flow</span></div>
-      <p class="hint">البرومبت جاهز حسب عنوان الفيديو وإعدادات القناة.</p>
+      <p class="hint">ينسخ برومبت القناة، ثم العنوان المختار إن وجد والسكريبت كاملًا في آخره.</p>
       ${d.integrations.thumbnails ? `<button class="btn small" data-act="thumbnail" data-id="${e.id}" type="button" ${state.busy.has('i' + e.id) ? 'disabled' : ''}>${state.busy.has('i' + e.id) ? '⏳ جاري توليد الصورة…' : '✨ ولّد الصورة بـ Gemini'}</button>` : ''}
-      <button class="btn flow-button" data-act="flow" data-id="${e.id}" type="button">📋 انسخ البرومبت وافتح Google Flow</button>
+      <button class="btn flow-button" data-act="flow" data-id="${e.id}" type="button">📋 انسخ البرومبت والسكريبت وافتح Google Flow</button>
       ${e.thumb_url ? `<div class="thumb"><img src="${esc(e.thumb_url)}" alt="الصورة المصغرة" loading="lazy"><div class="row"><a class="btn small ghost" href="${esc(e.thumb_url)}" download>⬇️ تحميل الصورة</a></div></div>` : ''}
     </section>
     </div>
@@ -669,7 +670,7 @@ document.addEventListener('click', (ev) => {
         const flowTab = window.open(state.data.integrations.flowUrl, '_blank');
         if (flowTab) flowTab.opener = null;
         await flushAll();
-        await copyText(promptValue(id));
+        await copyText(composeThumbnailCopy(entryById(id)));
         return toast(flowTab ? '✅ الوصف اتنسخ وFlow اتفتح — الصقه واضغط إنشاء' : '📋 الوصف اتنسخ — اسمح بالنوافذ المنبثقة لفتح Flow');
       }
       case 'notify':
