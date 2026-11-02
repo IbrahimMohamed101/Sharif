@@ -57,6 +57,10 @@ try {
       await daily.locator('[data-act="toggle"]').click();
       assert.equal(await daily.locator('.t-body').count(), 1, 'Daily task must expand');
       const dailyNotes = daily.locator('details.script-notes');
+      // The same task may have already been expanded in the Scripts tab.
+      // Start from a known collapsed state so this checks opening, not closing.
+      if (await dailyNotes.getAttribute('open') !== null) await dailyNotes.locator('summary').click();
+      assert.equal(await dailyNotes.getAttribute('open'), null, 'Start daily notes collapsed');
       await dailyNotes.locator('summary').click();
       assert.equal(await daily.locator('.t-body').count(), 1, 'Opening nested notes must NOT close its parent task');
       assert.equal(await dailyNotes.getAttribute('open'), '', 'Notes should expand inside the daily task');
