@@ -26,6 +26,9 @@ jobs:
           node --check public/app.js
           node --check server/store.js
           node --check server/app.js
+          node --check server/turso-snapshots.js
+          node --check server/legacy-import.js
+          node --check tools/migrate-live-to-turso.mjs
       - run: npm test
 
   browser-smoke:
