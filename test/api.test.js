@@ -421,3 +421,32 @@ test('القنوات: إضافة وتعديل وحذف (والمهام بتفض�
     assert.equal(after.channel_id, null);
     assert.equal((await s.del(`/api/channels/${c.json.id}`)).status, 404);
   }));
+
+
+test('DeepSeek shows as a title provider only after API setup, and generates titles with its own endpoint', async () => {
+  const ai = mockFetch(() => ({ body: { choices: [{ message: { content: '["عنوان ديب سيك"]' } }] } }));
+  await withServer({ env: { DEEPSEEK_API_KEY: 'test-private-key' }, fetchImpl: ai }, async (s) => {
+    const before = await state(s);
+    assert.ok(before.integrations.aiProviders.includes('deepseek'));
+    const saved = await s.put('/api/settings', { aiProvider: 'deepseek' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.aiProvider, 'deepseek');
+    const response = await s.post(`/api/entries/${before.entries[0].id}/titles`, {});
+    assert.equal(response.status, 200);
+    assert.equal(response.json.provider, 'deepseek');
+    assert.deepEqual(response.json.titles, ['عنوان ديب سيك']);
+    assert.equal(ai.calls[0].url, 'https://api.deepseek.com/chat/completions');
+    assert.equal(ai.calls[0].init.headers.authorization, 'Bearer test-private-key');
+    const body = JSON.parse(ai.calls[0].init.body);
+    assert.equal(body.model, 'deepseek-flash');
+    assert.deepEqual(body.thinking, { type: 'disabled' });
+    assert.match(body.messages[0].content, /عناوين/);
+  });
+  await withServer({}, async (s) => {
+    const initial = await state(s);
+    assert.ok(!initial.integrations.aiProviders.includes('deepseek'));
+    const choice = await s.post(`/api/entries/${initial.entries[0].id}/titles`, { provider: 'deepseek' });
+    assert.equal(choice.status, 400);
+    assert.match(choice.json.error, /مش متفعّل/);
+  });
+});
