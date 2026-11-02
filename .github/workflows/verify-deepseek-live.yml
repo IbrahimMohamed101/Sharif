@@ -1,0 +1,49 @@
+name: Verify live DeepSeek provider
+on:
+  push:
+    branches:
+      - ops/verify-deepseek-live-2026-11-02
+    paths:
+      - .github/workflows/verify-deepseek-live.yml
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect the public provider inventory without exposing keys
+        run: |
+          node --input-type=module <<'JS'
+          const url = 'https://sharif-gc4c.onrender.com/api/state';
+          let response, last;
+          for (let i = 0; i < 4; i++) {
+            try {
+              response = await fetch(url, { signal: AbortSignal.timeout(45000) });
+              if (!response.ok) throw Error('HTTP ' + response.status);
+              break;
+            } catch (e) {
+              last = e;
+              if (i === 3) throw last;
+              await new Promise(r => setTimeout(r, 4000));
+            }
+          }
+          const data = await response.json();
+          const available = data?.integrations?.aiProviders || [];
+          const active = available.includes('deepseek');
+          console.log(JSON.stringify({
+            verified: active,
+            provider: 'deepseek',
+            apiKeyExposed: false,
+            enabledProviders: available,
+            currentWeek: data.weekStart,
+            entryCount: data.entries?.length,
+          }));
+          if (!active) {
+            console.error('DeepSeek missing from live provider list. Verify DEEPSEEK_API_KEY in Render and redeploy if needed.');
+            process.exitCode = 1;
+          }
+          JS
