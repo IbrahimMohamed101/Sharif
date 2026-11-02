@@ -1,0 +1,31 @@
+name: Restore channel prompts to live Sharif (one-time)
+on:
+  push:
+    branches:
+      - ops/restore-channel-prompts-2026-11-03
+    paths:
+      - .github/workflows/restore-channel-prompts.yml
+permissions:
+  contents: read
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+      - name: Install existing project dependencies
+        run: npm ci
+      - name: Apply and verify image/title prompts without changing scripts or tasks
+        run: node tools/restore-sharif-channel-prompts.mjs
+      - name: Save pre-change channel data for rollback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharif-channel-prompts-before-2026-11-03
+          path: sharif-channel-prompts-before.json
+          retention-days: 30
+          if-no-files-found: ignore
