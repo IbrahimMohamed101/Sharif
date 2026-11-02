@@ -24,6 +24,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check public/app.js
+          node --check public/thumbnail-copy.js
           node --check server/store.js
           node --check server/app.js
           node --check server/turso-snapshots.js
@@ -47,3 +48,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Verify proofreading and notes on desktop and phone
         run: node e2e/proofread-smoke.mjs
+      - name: Verify channel thumbnail prompt copy with full script on desktop and phone
+        run: node e2e/thumbnail-copy-smoke.mjs
