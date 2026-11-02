@@ -37,12 +37,12 @@ if (process.env.SEED_DEMO !== 'false' && seedDefaultWeek(db)) {
   console.log('ℹ️  اتحمّل جدول الموقع القديم: 4 قنوات × 24 مهمة (الجمعة → الأربعاء). عدّله من الإعدادات.');
 }
 
-// Persist seed and VAPID keys before accepting traffic.
+const { app, push } = createApp({ db, env: process.env, dataDir, snapshots });
+// Persist seed, database and generated VAPID keys before accepting traffic.
 if (snapshots) {
   await snapshots.persistIfChanged(db);
   console.log('[turso] Initial state durable, revision ' + snapshots.version);
 }
-const { app, push } = createApp({ db, env: process.env, dataDir, snapshots });
 startScheduler({ db, push, persist: snapshots ? () => snapshots.persistIfChanged(db) : undefined });
 
 if (!process.env.RESET_PASSWORD) console.warn('⚠️  RESET_PASSWORD مش متضبط — بيستخدم كلمة "changeme". غيّرها في ملف .env');
