@@ -5,6 +5,7 @@ on:
       - ops/turso-migration-2026-11-02
     paths:
       - .github/workflows/turso-migrate-once.yml
+      - tools/migrate-live-to-turso.mjs
 
 permissions:
   contents: read
