@@ -33,7 +33,25 @@ const key = e => ({
   thumb_url:e.thumb_url,
 });
 function compare(label, local, remote) {
-  if (hash(local) !== hash(remote)) throw new Error(label + ' changed in live Render after Turso migration — refusing cutover');
+  if (hash(local) === hash(remote)) return;
+  // Report field names only. Never print scripts, notes or private content into CI logs.
+  const diffs = [];
+  if (Array.isArray(local) && Array.isArray(remote)) {
+    for (let i = 0; i < Math.max(local.length, remote.length); i++) {
+      const a = local[i] ?? {}, b = remote[i] ?? {};
+      if (hash(a) !== hash(b)) {
+        const changedKeys = [...new Set([...Object.keys(a), ...Object.keys(b)])]
+          .filter(k => hash(a[k]) !== hash(b[k]));
+        diffs.push({ localId: a.id ?? null, liveId: b.id ?? null, keys: changedKeys });
+      }
+    }
+  } else {
+    diffs.push({ keys: [...new Set([...Object.keys(local), ...Object.keys(remote)])]
+      .filter(k => hash(local[k]) !== hash(remote[k])) });
+  }
+  throw new Error(label + ' differs between live and Turso: ' + JSON.stringify({
+    localCount: local.length, liveCount: remote.length, diffs: diffs.slice(0, 8),
+  }));
 }
 try {
   const storage = new TursoSnapshots({
